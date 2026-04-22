@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crud-go/internal/repository"
 	"log"
 	"os"
 
@@ -13,6 +14,16 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	db := repository.Connect()
+	pingErr := db.Ping()
+	if pingErr != nil {
+		log.Panic(pingErr)
+	} else {
+		log.Println("Подключение к БД установлено успешно")
+	}
+
+	defer repository.Close(db)
 
 	r := gin.Default()
 	r.Run(":" + os.Getenv("APP_PORT"))
