@@ -2,6 +2,6 @@ package model
 
 type Worker struct {
 	User
-	Superior          Manager // From DB
-	NumberOfContracts uint    // Calculated in service
+	SuperiorLogin     string // From DB
+	NumberOfContracts uint   // Calculated in service
 }

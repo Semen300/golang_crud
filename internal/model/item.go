@@ -1,7 +1,7 @@
 package model
 
 type Item struct {
-	id    int
-	name  string
-	price float64
+	Id    int    // From DB
+	Name  string // From DB
+	Price uint   // From DB
 }
