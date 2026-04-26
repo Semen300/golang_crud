@@ -213,6 +213,10 @@ func (c OrderRepository) GetOrderById(id int) (model.Order, error) {
 		&order.Status,
 		&order.PriseTotal)
 	if scanError != nil {
+		if scanError == sql.ErrNoRows {
+			return model.Order{},
+				nil
+		}
 		return model.Order{},
 			fmt.Errorf("Error scanning values from rows:\n %w", scanError)
 	}
@@ -244,7 +248,8 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 		managerLogin=$4,
 		workerLogin=$5,
 		customerLogin=$6,
-		status=$7
+		status=$7,
+		price=$8
 		WHERE id=$1`
 	}
 
@@ -256,10 +261,10 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 		order.WorkerLogin,
 		order.CustomerLogin,
 		order.Status,
-		order.Status,
+		order.PriseTotal,
 	)
 	if queryErr != nil {
-		return fmt.Errorf("Error executin Идентификатор g query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
+		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
 	}
 	if !isPresent {
 		o.CurrentID++
@@ -267,7 +272,10 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 	return nil
 }
 
-func (o *OrderRepository) deleteOrder(id string) error {
+// DeelteOrder служит для удаления заказа
+// Принимает ID заказа
+// Возвращает возможную ошибку
+func (o *OrderRepository) DeleteOrder(id int) error {
 	query := `DELETE FROM orders
 	WHERE id = $1`
 
