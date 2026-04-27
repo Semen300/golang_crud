@@ -236,6 +236,8 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 	if queryErr != nil {
 		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", selectQuery, queryErr)
 	}
+	defer rows.Close()
+
 	isPresent := rows.Next()
 	var saveQuery string
 	if !isPresent {

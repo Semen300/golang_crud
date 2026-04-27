@@ -49,7 +49,7 @@ func resetOrders(db *sql.DB) {
 	migrateOrders(db)
 }
 
-func TestNewRepository(t *testing.T) {
+func TestNewOrderRepository(t *testing.T) {
 	repo, repoErr := repository.NewOrderRepository(testDB)
 	if repoErr != nil {
 		t.Fatal(repoErr)

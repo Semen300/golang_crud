@@ -7,8 +7,8 @@ import (
 )
 
 type ItemRepository struct {
-	Conn   *sql.DB
-	lastID uint
+	Conn      *sql.DB
+	CurrentID uint
 }
 
 func NewItemRepository(db *sql.DB) (ItemRepository, error) {
@@ -34,6 +34,7 @@ func (i ItemRepository) GetAllItems() ([]model.Item, error) {
 		return nil,
 			fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
 	}
+	defer rows.Close()
 
 	var items []model.Item = make([]model.Item, 0)
 	for rows.Next() {
