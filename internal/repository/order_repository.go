@@ -6,16 +6,18 @@ import (
 	"fmt"
 )
 
-// OrderRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов
-// TODO: Разобраться с генерацией ID
+// OrderRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов.
 type OrderRepository struct {
 	Conn      *sql.DB // Подключение к БД
-	CurrentID uint    // ID последнего заказа в таблице
+	CurrentID int     // ID последнего заказа в таблице
 }
 
-// NewOrderRepository создаёт новый репозиторий для доступа к функционалу контрактов. Также проводит инициализацию таблиц "orders" и "tasks"
-// Принимает указатель на подключение к базе данных
-// Возвращает новый экземпляр репозитория
+// NewOrderRepository создаёт новый репозиторий для доступа к функционалу заказов.
+// Также проводит инициализацию таблиц "orders".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
+//
 // TODO: применить паттерн "синглтон" для создания одного экземпляра репозитория
 func NewOrderRepository(db *sql.DB) (OrderRepository, error) {
 	ordersCreationQuery := `CREATE TABLE IF NOT EXISTS orders (
@@ -36,8 +38,10 @@ func NewOrderRepository(db *sql.DB) (OrderRepository, error) {
 	return OrderRepository{db, 0}, nil
 }
 
-// GetAllOrders служит для получения всех заказов, хранящихся в базе данных
-// Возвращает список всех заказов и ошибку, если она есть
+// GetAllOrders служит для получения всех заказов, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех заказов и возможную ошибку.
 func (c OrderRepository) GetAllOrders() ([]model.Order, error) {
 	orderQuery := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
 	FROM orders o`
@@ -74,8 +78,9 @@ func (c OrderRepository) GetAllOrders() ([]model.Order, error) {
 }
 
 // GetOrdersByManager служит для получения всех заказов, назначенных определённому менеджеру.
-// Принимает логин менеджера, для которого нужно получить заказы
-// Возвращает список заказов и возможную ошибку
+//
+// Принимает логин менеджера, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
 func (c OrderRepository) GetOrdersByManager(managerLogin string) ([]model.Order, error) {
 	query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
 	FROM orders o
@@ -115,8 +120,9 @@ func (c OrderRepository) GetOrdersByManager(managerLogin string) ([]model.Order,
 }
 
 // GetOrdersByWorker служит для получения всех заказов, назначенных определённому работнику.
-// Принимает логин работника, для которого нужно получить заказы
-// Возвращает список заказов и возможную ошибку
+//
+// Принимает логин работника, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
 func (c OrderRepository) GetOrdersByWorker(workerLogin string) ([]model.Order, error) {
 	query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
 	FROM orders o
@@ -156,8 +162,9 @@ func (c OrderRepository) GetOrdersByWorker(workerLogin string) ([]model.Order, e
 }
 
 // GetOrdersByCustomer служит для получения всех заказов, оформленных заказчиком.
-// Принимает логин заказчика, для которого нужно получить заказы
-// Возвращает список заказов и возможную ошибку
+//
+// Принимает логин заказчика, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
 func (c OrderRepository) GetOrdersByCustomer(customerLogin string) ([]model.Order, error) {
 	query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
 	FROM orders o
@@ -198,8 +205,8 @@ func (c OrderRepository) GetOrdersByCustomer(customerLogin string) ([]model.Orde
 
 // GetOrderById служит для получения заказа по его ID.
 //
-// Принимает ID искомого заказа.
-// Возвращает искомый заказ и возможную ошибку.
+// Принимает ID искомого заказа,
+// возвращает искомый заказ и возможную ошибку.
 func (c OrderRepository) GetOrderById(id int) (model.Order, error) {
 	query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
 	FROM orders o
@@ -223,10 +230,12 @@ func (c OrderRepository) GetOrderById(id int) (model.Order, error) {
 	return order, nil
 }
 
-// SaveOrder служит для идемпотентного сохранения заказа
-// В случае, если сохраняемый заказ существует в БД, обновляет его
-// Принимает заказ, который нужно сохранить
-// Возвращает возможную ошибку
+// SaveOrder служит для идемпотентного сохранения заказа.
+// В случае, если сохраняемый заказ существует в БД, обновляет его,
+// иначе создаёт новый заказ.
+//
+// Принимает заказ, который нужно сохранить,
+// возвращает возможную ошибку.
 func (o *OrderRepository) SaveOrder(order model.Order) error {
 	selectQuery := `SELECT * 
 	FROM orders
@@ -256,7 +265,7 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 	}
 
 	_, queryErr = o.Conn.Exec(saveQuery,
-		order.ID,
+		o.CurrentID+1,
 		order.Name,
 		order.Deadline,
 		order.ManagerLogin,
@@ -274,9 +283,12 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 	return nil
 }
 
-// DeelteOrder служит для удаления заказа
-// Принимает ID заказа
-// Возвращает возможную ошибку
+// DeelteOrder служит для идемпотентного удаления заказа.
+// Если заказ существует - удалит его,
+// иначе не сделает ничего.
+//
+// Принимает ID заказа,
+// возвращает возможную ошибку.
 func (o *OrderRepository) DeleteOrder(id int) error {
 	query := `DELETE FROM orders
 	WHERE id = $1`
@@ -284,6 +296,9 @@ func (o *OrderRepository) DeleteOrder(id int) error {
 	_, queryErr := o.Conn.Exec(query, id)
 	if queryErr != nil {
 		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+	}
+	if o.CurrentID == id {
+		o.CurrentID--
 	}
 
 	return nil

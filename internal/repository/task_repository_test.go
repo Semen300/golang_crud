@@ -25,7 +25,7 @@ func migrateTasks(db *sql.DB) {
 	finished BOOL,
 	price SERIAL)`)
 	if createErr != nil {
-		log.Fatal(fmt.Errorf("Error executing migration into table 'orders': \nError creating table: \n%w", createErr))
+		log.Fatal(fmt.Errorf("Error executing migration into table 'tasks': \nError creating table: \n%w", createErr))
 	}
 
 	_, insertErr := db.Exec(`INSERT INTO tasks
@@ -36,7 +36,7 @@ func migrateTasks(db *sql.DB) {
 		2, "task2", 2, 2, 2, true, 200,
 		3, "task3", 3, 3, 3, true, 300)
 	if insertErr != nil {
-		log.Fatal(fmt.Errorf("Error executing migration into table 'orders': \nError adding values: \n%w", createErr))
+		log.Fatal(fmt.Errorf("Error executing migration into table 'tasks': \nError adding values: \n%w", createErr))
 	}
 }
 
@@ -62,6 +62,25 @@ func TestNewTaskRepository(t *testing.T) {
 	pingErr := repo.Conn.Ping()
 	if pingErr != nil {
 		t.Fatal(pingErr)
+	}
+}
+
+func TestGetAllTasks(t *testing.T) {
+	repo, repoErr := repository.NewTaskRepository(testDB)
+	if repoErr != nil {
+		t.Fatal(repoErr)
+	}
+	tasks, getErr := repo.GetAllTasks()
+	if getErr != nil {
+		t.Fatal(getErr)
+	}
+	if len(tasks) != len(expectedTasks) {
+		t.Errorf("Result length missmatch: expected %d, got %d", len(expectedTasks), len(tasks))
+	}
+	for i, task := range tasks {
+		if task != expectedTasks[i] {
+			t.Errorf("Result missmatch: expected %s, got %s", expectedTasks[i].ToString(), task.ToString())
+		}
 	}
 }
 

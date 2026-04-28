@@ -6,11 +6,17 @@ import (
 	"fmt"
 )
 
+// TaskRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список задач
 type TaskRepository struct {
 	Conn       *sql.DB
 	CurrerntID int
 }
 
+// NewTaskRepository создаёт новый репозиторий для доступа к функционалу задач.
+// Также проводит инициализацию таблиц "tasks".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
 func NewTaskRepository(db *sql.DB) (TaskRepository, error) {
 	query := `CREATE TABLE IF NOT EXISTS tasks(
 	id SERIAL PRIMARY KEY,
@@ -29,6 +35,42 @@ func NewTaskRepository(db *sql.DB) (TaskRepository, error) {
 	return TaskRepository{db, 0}, nil
 }
 
+// GetAllTasks служит для получения всех задач, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех задач и возможную ошибку.
+func (t TaskRepository) GetAllTasks() ([]model.Task, error) {
+	query := `SELECT *
+	FROM tasks`
+	rows, queryErr := t.Conn.Query(query)
+	if queryErr != nil {
+		return nil,
+			fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", query, queryErr)
+	}
+	defer rows.Close()
+
+	tasks := make([]model.Task, 0)
+	for rows.Next() {
+		var task model.Task
+		scanErr := rows.Scan(&task.Id, &task.Name, &task.ContractID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+		if scanErr != nil {
+			return nil,
+				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+		}
+		tasks = append(tasks, task)
+	}
+	if iterErr := rows.Err(); iterErr != nil {
+		return nil,
+			fmt.Errorf("Error processing rows: \n %w", iterErr)
+	}
+
+	return tasks, nil
+}
+
+// GetTasksByContract служит для получения всех задач, составляющих заказ.
+//
+// Принимает ID заказа, для которого нужно получить задачи,
+// возвращает список задач и возможную ошибку.
 func (t TaskRepository) GetTasksByContract(contractID int) ([]model.Task, error) {
 	query := `SELECT *
 	FROM tasks
@@ -59,6 +101,10 @@ func (t TaskRepository) GetTasksByContract(contractID int) ([]model.Task, error)
 	return tasks, nil
 }
 
+// GetTaskById служит для получения задачи по её ID.
+//
+// Принимает ID искомой задачи,
+// возвращает искомую задачу и возможную ошибку.
 func (t TaskRepository) GetTaskById(id int) (model.Task, error) {
 	query := `SELECT *
 	FROM tasks
@@ -76,7 +122,13 @@ func (t TaskRepository) GetTaskById(id int) (model.Task, error) {
 	return task, nil
 }
 
-func (t TaskRepository) SaveTask(task model.Task) error {
+// SaveTask служит для идемпотентного сохранения задачи.
+// В случае, если сохраняемая задача существует в БД, обновляет её,
+// иначе создаёт новую задачу.
+//
+// Принимает задачу, которую нужно сохранить,
+// возвращает возможную ошибку.
+func (t *TaskRepository) SaveTask(task model.Task) error {
 	selectQuery := `SELECT *
 	FROM tasks
 	where id = $1`
@@ -104,7 +156,7 @@ func (t TaskRepository) SaveTask(task model.Task) error {
 		WHERE id = $1`
 	}
 	_, queryErr = t.Conn.Exec(saveQuery,
-		task.Id,
+		t.CurrerntID+1,
 		task.Name,
 		task.ContractID,
 		task.ItemID,
@@ -122,13 +174,22 @@ func (t TaskRepository) SaveTask(task model.Task) error {
 	return nil
 }
 
-func (t TaskRepository) DeleteTask(id int) error {
+// DeelteTask служит для идемпотентного удаления задачи.
+// Если задача существует - удалит её,
+// иначе не сделает ничего.
+//
+// Принимает ID задачи,
+// возвращает возможную ошибку.
+func (t *TaskRepository) DeleteTask(id int) error {
 	query := `DELETE FROM tasks
 	WHERE id = $1`
 
 	_, queryErr := t.Conn.Exec(query, id)
 	if queryErr != nil {
 		return fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", query, queryErr)
+	}
+	if t.CurrerntID == id {
+		t.CurrerntID--
 	}
 
 	return nil

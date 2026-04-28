@@ -8,6 +8,10 @@ type Customer struct {
 	Email  string // From DB
 }
 
+func NewCustomer(login, password, fio, number, email string) Customer {
+	return Customer{User{login, password, fio}, number, email}
+}
+
 func (c Customer) ToString() string {
 	return fmt.Sprintf("Customer {Login: %s, Password: %s, Fio: %s, Number: %s, Email: %s}",
 		c.Login,

@@ -6,11 +6,18 @@ import (
 	"fmt"
 )
 
+// ItemRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список товаров.
+//
+// TODO: Разобраться с генерацией ID
 type ItemRepository struct {
-	Conn      *sql.DB
-	CurrentID uint
+	Conn *sql.DB
 }
 
+// NewOrderRepository создаёт новый репозиторий для доступа к функционалу товаров.
+// Также проводит инициализацию таблиц "items".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
 func NewItemRepository(db *sql.DB) (ItemRepository, error) {
 	query := `CREATE TABLE IF NOT EXISTS items(
 	id SERIAL PRIMARY KEY,
@@ -22,9 +29,13 @@ func NewItemRepository(db *sql.DB) (ItemRepository, error) {
 		return ItemRepository{},
 			fmt.Errorf("Error creating table \"orders\":\n %w", migrationErr)
 	}
-	return ItemRepository{db, 0}, nil
+	return ItemRepository{db}, nil
 }
 
+// GetAllItems служит для получения всех товаров, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех товаров и возможную ошибку.
 func (i ItemRepository) GetAllItems() ([]model.Item, error) {
 	query := `SELECT *
 	FROM items`
@@ -54,6 +65,10 @@ func (i ItemRepository) GetAllItems() ([]model.Item, error) {
 	return items, nil
 }
 
+// GetItemById служит для получения товара по его ID.
+//
+// Принимает ID искомого товара,
+// возвращает искомый товар и возможную ошибку.
 func (i ItemRepository) GetItemById(id int) (model.Item, error) {
 	query := `SELECT *
 	FROM items
