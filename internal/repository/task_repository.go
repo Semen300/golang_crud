@@ -142,9 +142,11 @@ func (t *TaskRepository) SaveTask(task model.Task) error {
 	isPresent := rows.Next()
 
 	var saveQuery string
+	var idToUpdate int
 	if !isPresent {
 		saveQuery = `INSERT INTO tasks
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		idToUpdate = t.CurrerntID + 1
 	} else {
 		saveQuery = `UPDATE tasks
 		SET name = $2,
@@ -154,9 +156,10 @@ func (t *TaskRepository) SaveTask(task model.Task) error {
 		finished = $6,
 		price = $7
 		WHERE id = $1`
+		idToUpdate = task.Id
 	}
 	_, queryErr = t.Conn.Exec(saveQuery,
-		t.CurrerntID+1,
+		idToUpdate,
 		task.Name,
 		task.ContractID,
 		task.ItemID,

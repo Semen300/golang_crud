@@ -44,9 +44,10 @@ func migrateOrders(db *sql.DB) {
 	}
 }
 
-func resetOrders(db *sql.DB) {
-	db.Exec(`DROP TABLE IF EXISTS orders`)
-	migrateOrders(db)
+func resetOrders(r *repository.OrderRepository) {
+	r.Conn.Exec(`DROP TABLE IF EXISTS orders`)
+	migrateOrders(r.Conn)
+	r.CurrentID = 3
 }
 
 func TestNewOrderRepository(t *testing.T) {
@@ -65,7 +66,7 @@ func TestGetAllOrders(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
-
+	resetOrders(&repo)
 	orders, getErr := repo.GetAllOrders()
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -87,6 +88,7 @@ func TestGetOrdersByManager(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 	orders, getErr := repo.GetOrdersByManager(managerLogin)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -108,6 +110,7 @@ func TestGetOrdersByWorker(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 	orders, getErr := repo.GetOrdersByWorker(workerLogin)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -129,6 +132,7 @@ func TestGetOrdersByCustomer(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 	orders, getErr := repo.GetOrdersByCustomer(customerLogin)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -150,6 +154,7 @@ func TestGetOrderByID(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 	order, getErr := repo.GetOrderById(id)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -166,12 +171,12 @@ func TestSaveOrderSave(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 
-	saveErr := repo.SaveOrder(orderToSave)
+	_, saveErr := repo.SaveOrder(orderToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}
-	defer resetOrders(repo.Conn)
 
 	allOrders, _ := repo.GetAllOrders()
 	if len(allOrders) != 4 {
@@ -190,12 +195,12 @@ func TestSaveOrderUpdate(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 
-	saveErr := repo.SaveOrder(orderToSave)
+	_, saveErr := repo.SaveOrder(orderToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}
-	defer resetOrders(repo.Conn)
 
 	allOrders, _ := repo.GetAllOrders()
 	if len(allOrders) != 3 {
@@ -214,12 +219,12 @@ func TestDeleteOrder(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetOrders(&repo)
 
 	deleteErr := repo.DeleteOrder(id)
 	if deleteErr != nil {
 		t.Fatal(deleteErr)
 	}
-	defer resetOrders(repo.Conn)
 
 	order, _ := repo.GetOrderById(id)
 	if !reflect.DeepEqual(order, model.Order{}) {

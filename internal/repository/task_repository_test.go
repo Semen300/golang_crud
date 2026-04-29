@@ -40,9 +40,10 @@ func migrateTasks(db *sql.DB) {
 	}
 }
 
-func resetTasks(db *sql.DB) {
-	db.Exec(`DROP TABLE IF EXISTS tasks`)
-	migrateTasks(db)
+func resetTasks(repo *repository.TaskRepository) {
+	repo.Conn.Exec(`DROP TABLE IF EXISTS tasks`)
+	migrateTasks(repo.Conn)
+	repo.CurrerntID = 3
 }
 
 func getNumberOfTasks(db *sql.DB) int {
@@ -70,6 +71,7 @@ func TestGetAllTasks(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	tasks, getErr := repo.GetAllTasks()
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -90,6 +92,7 @@ func TestGetTasksByContract(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	tasks, getErr := repo.GetTasksByContract(rowNum)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -110,6 +113,7 @@ func TestGetTaskById(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	task, getErr := repo.GetTaskById(rowNum)
 	if getErr != nil {
 		t.Fatal(getErr)
@@ -125,11 +129,11 @@ func TestSaveTaskSave(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	saveErr := repo.SaveTask(taskToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}
-	defer resetTasks(repo.Conn)
 
 	numberOfTasks := getNumberOfTasks(repo.Conn)
 	if numberOfTasks != 4 {
@@ -148,11 +152,11 @@ func TestSaveTaskUpdate(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	saveErr := repo.SaveTask(taskToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}
-	defer resetTasks(repo.Conn)
 
 	numberOfTasks := getNumberOfTasks(repo.Conn)
 	if numberOfTasks != 3 {
@@ -171,11 +175,11 @@ func TestDeleteTask(t *testing.T) {
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
+	resetTasks(&repo)
 	deleteErr := repo.DeleteTask(rowNum)
 	if deleteErr != nil {
 		t.Fatal(deleteErr)
 	}
-	defer resetTasks(repo.Conn)
 
 	task, _ := repo.GetTaskById(rowNum)
 	if task != (model.Task{}) {

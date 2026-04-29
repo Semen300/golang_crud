@@ -37,10 +37,10 @@ func migrateItems(db *sql.DB) {
 	}
 }
 
-func resetItems(db *sql.DB) {
-	db.Exec(`DROP TABLE IF EXISTS items`)
-	migrateItems(db)
-}
+// func resetItems(db *sql.DB) {
+// 	db.Exec(`DROP TABLE IF EXISTS items`)
+// 	migrateItems(db)
+// }
 
 func TestNewItemRepository(t *testing.T) {
 	itemRepo, creatingErr := repository.NewItemRepository(testDB)

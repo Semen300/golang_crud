@@ -236,22 +236,24 @@ func (c OrderRepository) GetOrderById(id int) (model.Order, error) {
 //
 // Принимает заказ, который нужно сохранить,
 // возвращает возможную ошибку.
-func (o *OrderRepository) SaveOrder(order model.Order) error {
+func (o *OrderRepository) SaveOrder(order model.Order) (int, error) {
 	selectQuery := `SELECT * 
 	FROM orders
 	WHERE id = $1
 	`
 	rows, queryErr := o.Conn.Query(selectQuery, order.ID)
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", selectQuery, queryErr)
+		return 0, fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", selectQuery, queryErr)
 	}
 	defer rows.Close()
 
 	isPresent := rows.Next()
 	var saveQuery string
+	var idToUpdate int
 	if !isPresent {
 		saveQuery = `INSERT INTO orders 
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
+		idToUpdate = o.CurrentID + 1
 	} else {
 		saveQuery = `UPDATE orders 
 		SET name=$2,
@@ -262,10 +264,11 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 		status=$7,
 		price=$8
 		WHERE id=$1`
+		idToUpdate = order.ID
 	}
 
 	_, queryErr = o.Conn.Exec(saveQuery,
-		o.CurrentID+1,
+		idToUpdate,
 		order.Name,
 		order.Deadline,
 		order.ManagerLogin,
@@ -275,12 +278,13 @@ func (o *OrderRepository) SaveOrder(order model.Order) error {
 		order.PriseTotal,
 	)
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
+		return 0, fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
 	}
 	if !isPresent {
 		o.CurrentID++
+		return o.CurrentID, nil
 	}
-	return nil
+	return order.ID, nil
 }
 
 // DeelteOrder служит для идемпотентного удаления заказа.
