@@ -26,12 +26,12 @@ func (m *mockManagerService) GetAllOrders(login string, role int) ([]model.Order
 	return args.Get(0).([]model.Order), args.Error(1)
 }
 
-func (m *mockManagerService) GetOrderByID(login string, role int, id int) (model.Order, error) {
+func (m *mockManagerService) GetOrderById(login string, role int, id int) (model.Order, error) {
 	args := m.Called(login, role, id)
 	return args.Get(0).(model.Order), args.Error(1)
 }
 
-func (m *mockManagerService) SetWorkerLogin(login string, role int, orderID int, workerLogin string) error {
+func (m *mockManagerService) AssignWorkerToOrder(login string, role int, orderID int, workerLogin string) error {
 	args := m.Called(login, role, orderID, workerLogin)
 	return args.Error(0)
 }

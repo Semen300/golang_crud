@@ -47,7 +47,7 @@ func (mh ManagerHandler) GetOrderByID(ctx *gin.Context) {
 	}
 
 	//Получаем заказ менеджера через сервис по логину, роли и ID заказа
-	order, serviceErr := mh.managerService.GetOrderByID(login, role, orderID)
+	order, serviceErr := mh.managerService.GetOrderById(login, role, orderID)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
 		return
@@ -77,7 +77,7 @@ func (mh ManagerHandler) SetWorkerLogin(ctx *gin.Context) {
 		return
 	}
 	//Устанавливаем логин рабочего для заказа через сервис по логину, роли, ID заказа и логину рабочего
-	serviceErr := mh.managerService.SetWorkerLogin(login, role, orderID, requestBody.WorkerLogin)
+	serviceErr := mh.managerService.AssignWorkerToOrder(login, role, orderID, requestBody.WorkerLogin)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error setting worker login: " + serviceErr.Error()})
 		return

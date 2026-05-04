@@ -46,9 +46,9 @@ func (m *mockCustomerService) GetItems(login string, role int) ([]model.Item, er
 	return args.Get(0).([]model.Item), args.Error(1)
 }
 
-func (m *mockCustomerService) GetBasket(login string, role int) ([]model.Task, error) {
+func (m *mockCustomerService) GetBasket(login string, role int) ([]model.TaskCreationDTO, error) {
 	args := m.Called(login, role)
-	return args.Get(0).([]model.Task), args.Error(1)
+	return args.Get(0).([]model.TaskCreationDTO), args.Error(1)
 }
 
 func (m *mockCustomerService) SaveToBasket(login string, role int, item model.TaskCreationDTO) error {
@@ -232,8 +232,7 @@ func TestDeleteFromBasketBadRequest(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	mockService := new(mockCustomerService)
 	orderDTO := model.OrderCreationDTO{
-		Deadline:      time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
-		CustomerLogin: "customer1",
+		Deadline: time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC),
 		Tasks: []model.TaskCreationDTO{
 			{ItemID: 1, Amount: 2},
 			{ItemID: 2, Amount: 1},
@@ -302,8 +301,8 @@ func TestGetItems(t *testing.T) {
 func TestGetBasket(t *testing.T) {
 	mockService := new(mockCustomerService)
 	mockBasket := []model.Task{
-		{Id: 1, Name: "Task 1", ContractID: 1, ItemID: 1, Amount: 2, Finished: false, Price: 100},
-		{Id: 2, Name: "Task 2", ContractID: 1, ItemID: 2, Amount: 1, Finished: false, Price: 50},
+		{Id: 1, Name: "Task 1", OrderID: 1, ItemID: 1, Amount: 2, Finished: false, Price: 100},
+		{Id: 2, Name: "Task 2", OrderID: 1, ItemID: 2, Amount: 1, Finished: false, Price: 50},
 	}
 	mockService.On("GetBasket", "customer1", 1).Return(mockBasket, nil)
 

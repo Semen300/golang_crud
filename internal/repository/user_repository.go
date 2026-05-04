@@ -6,6 +6,12 @@ import (
 	"fmt"
 )
 
+type IUserRepository interface {
+	GetWorkersByManager(string) ([]model.Worker, error)
+	GetRoleByLogin(string) (int, string, error)
+	SaveCustomer(model.Customer) error
+}
+
 // UserRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов.
 type UserRepository struct {
 	Conn *sql.DB

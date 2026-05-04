@@ -10,9 +10,9 @@ import (
 )
 
 var expectedTasks = []model.Task{
-	{Id: 1, Name: "task1", ContractID: 1, ItemID: 1, Amount: 1, Finished: true, Price: 100},
-	{Id: 2, Name: "task2", ContractID: 2, ItemID: 2, Amount: 2, Finished: true, Price: 200},
-	{Id: 3, Name: "task3", ContractID: 3, ItemID: 3, Amount: 3, Finished: true, Price: 300},
+	{Id: 1, Name: "task1", OrderID: 1, ItemID: 1, Amount: 1, Finished: true, Price: 100},
+	{Id: 2, Name: "task2", OrderID: 2, ItemID: 2, Amount: 2, Finished: true, Price: 200},
+	{Id: 3, Name: "task3", OrderID: 3, ItemID: 3, Amount: 3, Finished: true, Price: 300},
 }
 
 func migrateTasks(db *sql.DB) {
@@ -124,13 +124,13 @@ func TestGetTaskById(t *testing.T) {
 }
 
 func TestSaveTaskSave(t *testing.T) {
-	var taskToSave = model.Task{Id: 4, Name: "task4", ContractID: 4, ItemID: 4, Amount: 4, Finished: true, Price: 400}
+	var taskToSave = model.Task{Id: 4, Name: "task4", OrderID: 4, ItemID: 4, Amount: 4, Finished: true, Price: 400}
 	repo, repoErr := repository.NewTaskRepository(testDB)
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
 	resetTasks(&repo)
-	saveErr := repo.SaveTask(taskToSave)
+	_, saveErr := repo.SaveTask(taskToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}
@@ -147,13 +147,13 @@ func TestSaveTaskSave(t *testing.T) {
 }
 
 func TestSaveTaskUpdate(t *testing.T) {
-	var taskToSave = model.Task{Id: 3, Name: "task4", ContractID: 4, ItemID: 4, Amount: 4, Finished: true, Price: 400}
+	var taskToSave = model.Task{Id: 3, Name: "task4", OrderID: 4, ItemID: 4, Amount: 4, Finished: true, Price: 400}
 	repo, repoErr := repository.NewTaskRepository(testDB)
 	if repoErr != nil {
 		t.Fatal(repoErr)
 	}
 	resetTasks(&repo)
-	saveErr := repo.SaveTask(taskToSave)
+	_, saveErr := repo.SaveTask(taskToSave)
 	if saveErr != nil {
 		t.Fatal(saveErr)
 	}

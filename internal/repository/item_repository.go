@@ -6,15 +6,18 @@ import (
 	"fmt"
 )
 
+type IItemRepository interface {
+	GetAllItems() ([]model.Item, error)
+	GetItemByID(int) (model.Item, error)
+}
+
 // ItemRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список товаров.
-//
-// TODO: Разобраться с генерацией ID
 type ItemRepository struct {
 	Conn *sql.DB
 }
 
 // NewOrderRepository создаёт новый репозиторий для доступа к функционалу товаров.
-// Также проводит инициализацию таблиц "items".
+// Также проводит инициализацию таблицы "items".
 //
 // Принимает указатель на подключение к базе данных,
 // возвращает новый экземпляр репозитория и возможную ошибку.

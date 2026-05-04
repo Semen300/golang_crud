@@ -6,6 +6,16 @@ import (
 	"fmt"
 )
 
+type IOrderRepository interface {
+	GetAllOrders() ([]model.Order, error)
+	GetOrdersByManager(string) ([]model.Order, error)
+	GetOrdersByWorker(string) ([]model.Order, error)
+	GetOrdersByCustomer(string) ([]model.Order, error)
+	GetOrderById(int) (model.Order, error)
+	SaveOrder(model.Order) (int, error)
+	DeleteOrder(int) error
+}
+
 // OrderRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов.
 type OrderRepository struct {
 	Conn      *sql.DB // Подключение к БД
@@ -284,7 +294,7 @@ func (o *OrderRepository) SaveOrder(order model.Order) (int, error) {
 		o.CurrentID++
 		return o.CurrentID, nil
 	}
-	return order.ID, nil
+	return idToUpdate, nil
 }
 
 // DeelteOrder служит для идемпотентного удаления заказа.

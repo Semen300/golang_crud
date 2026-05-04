@@ -1,10 +1,22 @@
 package repository
 
 import (
+	"context"
 	"crud-go/internal/model"
 	"database/sql"
 	"fmt"
 )
+
+type ITaskRepository interface {
+	GetAllTasks() ([]model.Task, error)
+	GetTasksByContract(int) ([]model.Task, error)
+	GetTaskById(int) (model.Task, error)
+	SaveTask(model.Task) (int, error)
+	DeleteTask(int) error
+
+	Begin() (*sql.Tx, error)
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
 
 // TaskRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список задач
 type TaskRepository struct {
@@ -35,6 +47,14 @@ func NewTaskRepository(db *sql.DB) (TaskRepository, error) {
 	return TaskRepository{db, 0}, nil
 }
 
+func (t TaskRepository) Begin() (*sql.Tx, error) {
+	return t.Conn.Begin()
+}
+
+func (t TaskRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return t.Conn.BeginTx(ctx, opts)
+}
+
 // GetAllTasks служит для получения всех задач, хранящихся в базе данных.
 //
 // Не принимает значений,
@@ -52,7 +72,7 @@ func (t TaskRepository) GetAllTasks() ([]model.Task, error) {
 	tasks := make([]model.Task, 0)
 	for rows.Next() {
 		var task model.Task
-		scanErr := rows.Scan(&task.Id, &task.Name, &task.ContractID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+		scanErr := rows.Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 		if scanErr != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
@@ -86,7 +106,7 @@ func (t TaskRepository) GetTasksByContract(contractID int) ([]model.Task, error)
 	tasks := make([]model.Task, 0)
 	for rows.Next() {
 		var task model.Task
-		scanErr := rows.Scan(&task.Id, &task.Name, &task.ContractID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+		scanErr := rows.Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 		if scanErr != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
@@ -111,7 +131,7 @@ func (t TaskRepository) GetTaskById(id int) (model.Task, error) {
 	WHERE id = $1`
 
 	var task model.Task
-	scanErr := t.Conn.QueryRow(query, id).Scan(&task.Id, &task.Name, &task.ContractID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+	scanErr := t.Conn.QueryRow(query, id).Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
 			return model.Task{}, nil
@@ -128,14 +148,14 @@ func (t TaskRepository) GetTaskById(id int) (model.Task, error) {
 //
 // Принимает задачу, которую нужно сохранить,
 // возвращает возможную ошибку.
-func (t *TaskRepository) SaveTask(task model.Task) error {
+func (t *TaskRepository) SaveTask(task model.Task) (int, error) {
 	selectQuery := `SELECT *
 	FROM tasks
 	where id = $1`
 
 	rows, queryErr := t.Conn.Query(selectQuery, task.Id)
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", selectQuery, queryErr)
+		return 0, fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", selectQuery, queryErr)
 	}
 	defer rows.Close()
 
@@ -161,20 +181,20 @@ func (t *TaskRepository) SaveTask(task model.Task) error {
 	_, queryErr = t.Conn.Exec(saveQuery,
 		idToUpdate,
 		task.Name,
-		task.ContractID,
+		task.OrderID,
 		task.ItemID,
 		task.Amount,
 		task.Finished,
 		task.Price)
 
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", saveQuery, queryErr)
+		return 0, fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", saveQuery, queryErr)
 	}
 	if !isPresent {
 		t.CurrerntID++
 	}
 
-	return nil
+	return idToUpdate, nil
 }
 
 // DeelteTask служит для идемпотентного удаления задачи.
