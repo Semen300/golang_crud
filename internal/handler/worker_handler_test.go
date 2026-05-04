@@ -25,7 +25,7 @@ func (m *mockWorkerService) GetAllOrders(login string, role int) ([]model.Order,
 	return args.Get(0).([]model.Order), args.Error(1)
 }
 
-func (m *mockWorkerService) GetOrderByID(login string, role int, id int) (model.Order, error) {
+func (m *mockWorkerService) GetOrderById(login string, role int, id int) (model.Order, error) {
 	args := m.Called(login, role, id)
 	return args.Get(0).(model.Order), args.Error(1)
 }

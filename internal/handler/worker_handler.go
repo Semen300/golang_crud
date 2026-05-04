@@ -56,7 +56,7 @@ func (wh WorkerHandler) GetOrder(ctx *gin.Context) {
 	}
 
 	//Получаем заказ рабочего через сервис по логину, роли и ID заказа
-	order, serviceErr := wh.workerService.GetOrderByID(login, role, orderID)
+	order, serviceErr := wh.workerService.GetOrderById(login, role, orderID)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
 		return

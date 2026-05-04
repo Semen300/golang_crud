@@ -7,6 +7,7 @@ import (
 )
 
 type IManagerService interface {
+	GetAllWorkers(string, int) ([]model.Worker, error)
 	GetAllOrders(string, int) ([]model.Order, error)
 	GetOrderById(string, int, int) (model.Order, error)
 	AssignWorkerToOrder(string, int, int, string) error
@@ -15,10 +16,26 @@ type IManagerService interface {
 type ManagerService struct {
 	OrderRepository repository.IOrderRepository
 	TaskRepository  repository.ITaskRepository
+	UserRepository  repository.IUserRepository
 }
 
-func NewManagerService(or repository.IOrderRepository, tr repository.ITaskRepository) ManagerService {
-	return ManagerService{OrderRepository: or, TaskRepository: tr}
+func NewManagerService(or repository.IOrderRepository, tr repository.ITaskRepository, ur repository.IUserRepository) ManagerService {
+	return ManagerService{OrderRepository: or, TaskRepository: tr, UserRepository: ur}
+}
+
+func (ms ManagerService) GetAllWorkers(login string, role int) ([]model.Worker, error) {
+	if role != 3 {
+		return nil,
+			fmt.Errorf("You are not authorized for this operation")
+	}
+
+	workers, getErr := ms.UserRepository.GetWorkersByManager(login)
+	if getErr != nil {
+		return nil,
+			fmt.Errorf("Error getting workers by manager: \n%w", getErr)
+	}
+
+	return workers, nil
 }
 
 func (ms ManagerService) GetAllOrders(login string, role int) ([]model.Order, error) {
@@ -104,6 +121,7 @@ func (ms ManagerService) AssignWorkerToOrder(login string, role int, id int, wor
 	if getErr != nil {
 		return fmt.Errorf("Error getting order by ID: \n%w", getErr)
 	}
+	order.ManagerLogin = login
 	order.WorkerLogin = workerLogin
 	order.Status = 1
 	_, saveErr := ms.OrderRepository.SaveOrder(order)

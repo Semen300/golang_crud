@@ -16,6 +16,21 @@ func NewManagerHandler(managerService service.IManagerService) ManagerHandler {
 	return ManagerHandler{managerService: managerService}
 }
 
+func (mh ManagerHandler) GetAllWorkers(ctx *gin.Context) {
+	//Извлекаем логин и роль менеджера из контекста
+	login, role := getUserInfo(ctx)
+	if login == "" || role == 0 {
+		return
+	}
+	//Получаем работников менеджера через сервис по логину и роли
+	workers, workerErr := mh.managerService.GetAllWorkers(login, role)
+	if workerErr != nil {
+		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving workers: " + workerErr.Error()})
+	}
+
+	ctx.JSON(http.StatusOK, workers)
+}
+
 func (mh ManagerHandler) GetOrdersByManager(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
@@ -56,7 +71,7 @@ func (mh ManagerHandler) GetOrderByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, order)
 }
 
-func (mh ManagerHandler) SetWorkerLogin(ctx *gin.Context) {
+func (mh ManagerHandler) AssignWorkerToOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {

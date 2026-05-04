@@ -21,6 +21,11 @@ type mockManagerService struct {
 	mock.Mock
 }
 
+func (m *mockManagerService) GetAllWorkers(login string, role int) ([]model.Worker, error) {
+	args := m.Called(login, role)
+	return args.Get(0).([]model.Worker), args.Error(1)
+}
+
 func (m *mockManagerService) GetAllOrders(login string, role int) ([]model.Order, error) {
 	args := m.Called(login, role)
 	return args.Get(0).([]model.Order), args.Error(1)
@@ -33,7 +38,33 @@ func (m *mockManagerService) GetOrderById(login string, role int, id int) (model
 
 func (m *mockManagerService) AssignWorkerToOrder(login string, role int, orderID int, workerLogin string) error {
 	args := m.Called(login, role, orderID, workerLogin)
-	return args.Error(0)
+	return args.Error(1)
+}
+
+func TestGetAllWorkers200(t *testing.T) {
+	mockService := mockManagerService{}
+	mockWorkers := []model.Worker{
+		model.NewWorker("worker1", "pass1", "AAAA", "manager1"),
+		model.NewWorker("worker2", "pass2", "BBBB", "manager1"),
+	}
+	mockService.On("GetAllWorkers", "manager1", 3).Return(mockWorkers, nil)
+
+	req := httptest.NewRequest(http.MethodGet, managerPrefix+"/workers", nil)
+	w := httptest.NewRecorder()
+	testCtx, _ := gin.CreateTestContext(w)
+	testCtx.Request = req
+
+	r := gin.New()
+	r.GET(managerPrefix+"/workers", func(ctx *gin.Context) {
+		ctx.Set("login", "manager1")
+		ctx.Set("role", 3)
+		handler.NewManagerHandler(&mockService).GetAllWorkers(ctx)
+	})
+
+	r.ServeHTTP(w, req)
+	mockBytes, _ := json.Marshal(mockWorkers)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, mockBytes, w.Body)
 }
 
 func TestGetOrdersByManager200(t *testing.T) {
@@ -105,7 +136,7 @@ func TestGetOrderByManagerBadRequest(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestSetWorkerLogin200(t *testing.T) {
+func TestAssignWorkerToOrder200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockManagerService)
@@ -115,7 +146,7 @@ func TestSetWorkerLogin200(t *testing.T) {
 	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
-		handler.NewManagerHandler(mockService).SetWorkerLogin(ctx)
+		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
 	})
 
 	requestBody := map[string]string{"workerLogin": "newworker"}
@@ -129,7 +160,7 @@ func TestSetWorkerLogin200(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-func TestSetWorkerLoginBadRequestInvalidID(t *testing.T) {
+func TestSetAssignWorkerToOrderBadRequestInvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockManagerService)
@@ -138,7 +169,7 @@ func TestSetWorkerLoginBadRequestInvalidID(t *testing.T) {
 	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
-		handler.NewManagerHandler(mockService).SetWorkerLogin(ctx)
+		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
 	})
 
 	requestBody := map[string]string{"workerLogin": "newworker"}
@@ -151,7 +182,7 @@ func TestSetWorkerLoginBadRequestInvalidID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestSetWorkerLoginBadRequestInvalidBody(t *testing.T) {
+func TestAssignWorkerToOrderBadRequestInvalidBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockManagerService)
@@ -160,7 +191,7 @@ func TestSetWorkerLoginBadRequestInvalidBody(t *testing.T) {
 	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 1)
-		handler.NewManagerHandler(mockService).SetWorkerLogin(ctx)
+		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
 	})
 
 	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/1/worker", bytes.NewBuffer([]byte("invalid json")))
