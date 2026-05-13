@@ -11,9 +11,10 @@ type IBasketRepository interface {
 	GetBasket(string) ([]model.TaskCreationDTO, error)
 	SaveToBasket(string, model.TaskCreationDTO) error
 	DeleteFromBasket(string, int) error
+	ClearBasket(string) error
 
-	Begin() (*sql.Tx, error)
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	Begin() (Tx, error)
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error)
 }
 
 type BasketRepository struct {
@@ -21,13 +22,13 @@ type BasketRepository struct {
 }
 
 func NewBasketRepository(db *sql.DB) (BasketRepository, error) {
-	basketCreationQuery := `CREATE TABLE IF NOT EXISTS basket_items
+	basketCreationQuery := `CREATE TABLE IF NOT EXISTS basket_items(
 	customerLogin TEXT,
 	itemID SERIAL,
 	name TEXT,
 	itemPrice INTEGER,
 	amount INTEGER,
-	PRIMARY KEY (customerLogin, itemID)`
+	PRIMARY KEY (customerLogin, itemID))`
 
 	_, creationErr := db.Exec(basketCreationQuery)
 	if creationErr != nil {
@@ -36,9 +37,17 @@ func NewBasketRepository(db *sql.DB) (BasketRepository, error) {
 	return BasketRepository{db}, nil
 }
 
+func (br BasketRepository) Begin() (Tx, error) {
+	return br.Conn.Begin()
+}
+
+func (br BasketRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
+	return br.Conn.BeginTx(ctx, opts)
+}
+
 func (br BasketRepository) GetBasket(customerLogin string) ([]model.TaskCreationDTO, error) {
-	query := `SELECT * 
-	FROM basket_items
+	query := `SELECT bi.itemID, bi.name, bi.itemPrice, bi.amount
+	FROM basket_items bi
 	WHERE customerLogin = $1`
 
 	rows, queryErr := br.Conn.Query(query, customerLogin)
@@ -91,7 +100,7 @@ func (br BasketRepository) SaveToBasket(customerLogin string, toSave model.TaskC
 		toSave.Amount)
 
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
+		return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", saveQuery, queryErr)
 	}
 
 	return nil
@@ -102,15 +111,17 @@ func (br BasketRepository) DeleteFromBasket(customerLogin string, itemID int) er
 	WHERE customerLogin = $1 AND itemID = $2`
 	_, queryErr := br.Conn.Exec(query, customerLogin, itemID)
 	if queryErr != nil {
-		return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+		return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", query, queryErr)
 	}
 	return nil
 }
 
-func (br BasketRepository) Begin() (*sql.Tx, error) {
-	return br.Conn.Begin()
-}
-
-func (br BasketRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
-	return br.Conn.BeginTx(ctx, opts)
+func (br BasketRepository) ClearBasket(customerLogin string) error {
+	query := `DELETE FROM basket_items
+	WHERE customerLogin = $1`
+	_, queryErr := br.Conn.Exec(query, customerLogin)
+	if queryErr != nil {
+		return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", query, queryErr)
+	}
+	return nil
 }

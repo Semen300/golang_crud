@@ -13,7 +13,7 @@ type Order struct {
 	WorkerLogin         string    // From DB
 	CustomerLogin       string    // From DB
 	PercentOfComplition float64   // Calculated in service
-	PriseTotal          int       // From DB
+	PriceTotal          int       // From DB
 	PriceUnfinished     int       // Calculated in service
 	Status              int       // From DB
 	Tasks               []Task    // calculated in service
@@ -28,7 +28,7 @@ func (o Order) ToString() string {
 		o.WorkerLogin,
 		o.CustomerLogin,
 		o.PercentOfComplition,
-		o.PriseTotal,
+		o.PriceTotal,
 		o.PriceUnfinished,
 		o.Status,
 		o.Tasks)

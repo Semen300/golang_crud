@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 	migrateItems(testDB)
 	migrateTasks(testDB)
 	migrateUsers(testDB)
+	migrateBasketItems(testDB)
 
 	code := m.Run()
 	os.Exit(code)

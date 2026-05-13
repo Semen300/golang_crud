@@ -38,7 +38,7 @@ func (m *mockManagerService) GetOrderById(login string, role int, id int) (model
 
 func (m *mockManagerService) AssignWorkerToOrder(login string, role int, orderID int, workerLogin string) error {
 	args := m.Called(login, role, orderID, workerLogin)
-	return args.Error(1)
+	return args.Error(0)
 }
 
 func TestGetAllWorkers200(t *testing.T) {
@@ -62,9 +62,10 @@ func TestGetAllWorkers200(t *testing.T) {
 	})
 
 	r.ServeHTTP(w, req)
-	mockBytes, _ := json.Marshal(mockWorkers)
+	var gotWorkers []model.Worker
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &gotWorkers))
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, mockBytes, w.Body)
+	assert.Equal(t, mockWorkers, gotWorkers)
 }
 
 func TestGetOrdersByManager200(t *testing.T) {
@@ -72,8 +73,8 @@ func TestGetOrdersByManager200(t *testing.T) {
 
 	mockService := new(mockManagerService)
 	mockOrders := []model.Order{
-		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2},
-		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker2", CustomerLogin: "customer2", PercentOfComplition: 75.0, PriseTotal: 200, PriceUnfinished: 50, Status: 2},
+		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2},
+		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker2", CustomerLogin: "customer2", PercentOfComplition: 75.0, PriceTotal: 200, PriceUnfinished: 50, Status: 2},
 	}
 	mockService.On("GetAllOrders", "manager1", 3).Return(mockOrders, nil)
 
@@ -97,8 +98,8 @@ func TestGetOrderByManager200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockManagerService)
-	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2}
-	mockService.On("GetOrderByID", "manager1", 3, 1).Return(mockOrder, nil)
+	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2}
+	mockService.On("GetOrderById", "manager1", 3, 1).Return(mockOrder, nil)
 
 	r := gin.New()
 	r.GET(managerPrefix+"/orders/:orderId", func(ctx *gin.Context) {
@@ -140,7 +141,7 @@ func TestAssignWorkerToOrder200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockManagerService)
-	mockService.On("SetWorkerLogin", "manager1", 3, 1, "newworker").Return(nil)
+	mockService.On("AssignWorkerToOrder", "manager1", 3, 1, "newworker").Return(nil)
 
 	r := gin.New()
 	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {

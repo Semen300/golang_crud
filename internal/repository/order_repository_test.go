@@ -12,9 +12,9 @@ import (
 )
 
 var expectedOrders = []model.Order{
-	{ID: 1, Name: "order1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", Status: 0, PriseTotal: 1000},
-	{ID: 2, Name: "order2", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker2", CustomerLogin: "customer2", Status: 0, PriseTotal: 2000},
-	{ID: 3, Name: "order3", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager3", WorkerLogin: "worker3", CustomerLogin: "customer3", Status: 0, PriseTotal: 3000},
+	{ID: 1, Name: "order1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", Status: 0, PriceTotal: 1000},
+	{ID: 2, Name: "order2", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker2", CustomerLogin: "customer2", Status: 0, PriceTotal: 2000},
+	{ID: 3, Name: "order3", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager3", WorkerLogin: "worker3", CustomerLogin: "customer3", Status: 0, PriceTotal: 3000},
 }
 
 func migrateOrders(db *sql.DB) {
@@ -166,7 +166,7 @@ func TestGetOrderByID(t *testing.T) {
 }
 
 func TestSaveOrderSave(t *testing.T) {
-	orderToSave := model.Order{ID: 4, Name: "order4", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager4", WorkerLogin: "worker4", CustomerLogin: "customer4", Status: 0, PriseTotal: 4000}
+	orderToSave := model.Order{ID: 4, Name: "order4", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager4", WorkerLogin: "worker4", CustomerLogin: "customer4", Status: 0, PriceTotal: 4000}
 	repo, repoErr := repository.NewOrderRepository(testDB)
 	if repoErr != nil {
 		t.Fatal(repoErr)
@@ -190,7 +190,7 @@ func TestSaveOrderSave(t *testing.T) {
 }
 
 func TestSaveOrderUpdate(t *testing.T) {
-	orderToSave := model.Order{ID: 3, Name: "order4", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager4", WorkerLogin: "worker4", CustomerLogin: "customer4", Status: 0, PriseTotal: 4000}
+	orderToSave := model.Order{ID: 3, Name: "order4", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager4", WorkerLogin: "worker4", CustomerLogin: "customer4", Status: 0, PriceTotal: 4000}
 	repo, repoErr := repository.NewOrderRepository(testDB)
 	if repoErr != nil {
 		t.Fatal(repoErr)

@@ -73,7 +73,7 @@ func (c OrderRepository) GetAllOrders() ([]model.Order, error) {
 			&order.WorkerLogin,
 			&order.CustomerLogin,
 			&order.Status,
-			&order.PriseTotal)
+			&order.PriceTotal)
 		if scanError != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanError)
@@ -113,7 +113,7 @@ func (c OrderRepository) GetOrdersByManager(managerLogin string) ([]model.Order,
 			&order.WorkerLogin,
 			&order.CustomerLogin,
 			&order.Status,
-			&order.PriseTotal)
+			&order.PriceTotal)
 		if scanError != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanError)
@@ -155,7 +155,7 @@ func (c OrderRepository) GetOrdersByWorker(workerLogin string) ([]model.Order, e
 			&order.WorkerLogin,
 			&order.CustomerLogin,
 			&order.Status,
-			&order.PriseTotal)
+			&order.PriceTotal)
 		if scanError != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanError)
@@ -197,7 +197,7 @@ func (c OrderRepository) GetOrdersByCustomer(customerLogin string) ([]model.Orde
 			&order.WorkerLogin,
 			&order.CustomerLogin,
 			&order.Status,
-			&order.PriseTotal)
+			&order.PriceTotal)
 		if scanError != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanError)
@@ -228,7 +228,7 @@ func (c OrderRepository) GetOrderById(id int) (model.Order, error) {
 		&order.WorkerLogin,
 		&order.CustomerLogin,
 		&order.Status,
-		&order.PriseTotal)
+		&order.PriceTotal)
 	if scanError != nil {
 		if scanError == sql.ErrNoRows {
 			return model.Order{},
@@ -285,7 +285,7 @@ func (o *OrderRepository) SaveOrder(order model.Order) (int, error) {
 		order.WorkerLogin,
 		order.CustomerLogin,
 		order.Status,
-		order.PriseTotal,
+		order.PriceTotal,
 	)
 	if queryErr != nil {
 		return 0, fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)

@@ -14,8 +14,8 @@ type ITaskRepository interface {
 	SaveTask(model.Task) (int, error)
 	DeleteTask(int) error
 
-	Begin() (*sql.Tx, error)
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	Begin() (Tx, error)
+	BeginTx(context.Context, *sql.TxOptions) (Tx, error)
 }
 
 // TaskRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список задач
@@ -47,11 +47,11 @@ func NewTaskRepository(db *sql.DB) (TaskRepository, error) {
 	return TaskRepository{db, 0}, nil
 }
 
-func (t TaskRepository) Begin() (*sql.Tx, error) {
+func (t TaskRepository) Begin() (Tx, error) {
 	return t.Conn.Begin()
 }
 
-func (t TaskRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+func (t TaskRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error) {
 	return t.Conn.BeginTx(ctx, opts)
 }
 
@@ -72,7 +72,7 @@ func (t TaskRepository) GetAllTasks() ([]model.Task, error) {
 	tasks := make([]model.Task, 0)
 	for rows.Next() {
 		var task model.Task
-		scanErr := rows.Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+		scanErr := rows.Scan(&task.ID, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 		if scanErr != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
@@ -106,7 +106,7 @@ func (t TaskRepository) GetTasksByContract(contractID int) ([]model.Task, error)
 	tasks := make([]model.Task, 0)
 	for rows.Next() {
 		var task model.Task
-		scanErr := rows.Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+		scanErr := rows.Scan(&task.ID, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 		if scanErr != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
@@ -131,7 +131,7 @@ func (t TaskRepository) GetTaskById(id int) (model.Task, error) {
 	WHERE id = $1`
 
 	var task model.Task
-	scanErr := t.Conn.QueryRow(query, id).Scan(&task.Id, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
+	scanErr := t.Conn.QueryRow(query, id).Scan(&task.ID, &task.Name, &task.OrderID, &task.ItemID, &task.Amount, &task.Finished, &task.Price)
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
 			return model.Task{}, nil
@@ -153,7 +153,7 @@ func (t *TaskRepository) SaveTask(task model.Task) (int, error) {
 	FROM tasks
 	where id = $1`
 
-	rows, queryErr := t.Conn.Query(selectQuery, task.Id)
+	rows, queryErr := t.Conn.Query(selectQuery, task.ID)
 	if queryErr != nil {
 		return 0, fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", selectQuery, queryErr)
 	}
@@ -176,7 +176,7 @@ func (t *TaskRepository) SaveTask(task model.Task) (int, error) {
 		finished = $6,
 		price = $7
 		WHERE id = $1`
-		idToUpdate = task.Id
+		idToUpdate = task.ID
 	}
 	_, queryErr = t.Conn.Exec(saveQuery,
 		idToUpdate,

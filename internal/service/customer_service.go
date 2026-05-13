@@ -4,6 +4,7 @@ import (
 	"crud-go/internal/model"
 	"crud-go/internal/repository"
 	"fmt"
+	"time"
 )
 
 type ICustomerService interface {
@@ -15,29 +16,33 @@ type ICustomerService interface {
 	GetBasket(login string, role int) ([]model.TaskCreationDTO, error)
 	SaveToBasket(login string, role int, item model.TaskCreationDTO) error
 	DeleteFromBasket(login string, role int, id int) error
+	ClearBasket(login string, role int) error
 }
 
 type CustomerService struct {
-	OrderRepository  repository.IOrderRepository
-	TaskRepository   repository.ITaskRepository
-	BasketRepository repository.IBasketRepository
-	ItemRepository   repository.IItemRepository
+	OrderRepository  *repository.IOrderRepository
+	TaskRepository   *repository.ITaskRepository
+	BasketRepository *repository.IBasketRepository
+	ItemRepository   *repository.IItemRepository
 }
 
-func NewCustomerService(or repository.IOrderRepository, tr repository.ITaskRepository, br repository.BasketRepository, ir repository.IItemRepository) CustomerService {
-	return CustomerService{OrderRepository: or, TaskRepository: tr, BasketRepository: br, ItemRepository: ir}
+func NewCustomerService(or repository.IOrderRepository, tr repository.ITaskRepository, br repository.IBasketRepository, ir repository.IItemRepository) CustomerService {
+	return CustomerService{OrderRepository: &or, TaskRepository: &tr, BasketRepository: &br, ItemRepository: &ir}
 }
 
-func (cs CustomerService) GetOrderByCustomer(login string, role int) ([]model.Order, error) {
+func (cs CustomerService) GetOrdersByCustomer(login string, role int) ([]model.Order, error) {
 	if role != 1 {
 		return nil, fmt.Errorf("You are not authorized for this operation")
 	}
-	orders, orderRepoErr := cs.OrderRepository.GetOrdersByCustomer(login)
+	or := *(cs.OrderRepository)
+	tr := *(cs.TaskRepository)
+
+	orders, orderRepoErr := or.GetOrdersByCustomer(login)
 	if orderRepoErr != nil {
 		return nil, fmt.Errorf("Error getting orders by customer login: \n%w", orderRepoErr)
 	}
 
-	tasks, taskRepoErr := cs.TaskRepository.GetAllTasks()
+	tasks, taskRepoErr := tr.GetAllTasks()
 	if taskRepoErr != nil {
 		return nil, fmt.Errorf("Error getting tasks from TaskRepository: \n%w", taskRepoErr)
 	}
@@ -68,11 +73,15 @@ func (cs CustomerService) GetOrderById(login string, role int, id int) (model.Or
 	if role != 1 {
 		return model.Order{}, fmt.Errorf("You are not authorized for this operation")
 	}
-	order, orderRepoErr := cs.OrderRepository.GetOrderById(id)
+	or := *(cs.OrderRepository)
+	tr := *(cs.TaskRepository)
+
+	order, orderRepoErr := or.GetOrderById(id)
 	if orderRepoErr != nil {
 		return model.Order{}, fmt.Errorf("Error getting order by order ID: \n%w", orderRepoErr)
 	}
-	tasks, taskRepoErr := cs.TaskRepository.GetTasksByContract(id)
+
+	tasks, taskRepoErr := tr.GetTasksByContract(id)
 	if taskRepoErr != nil {
 		return model.Order{}, fmt.Errorf("Error getting tasks by order ID: \n%w", taskRepoErr)
 	}
@@ -93,27 +102,48 @@ func (cs CustomerService) GetOrderById(login string, role int, id int) (model.Or
 	return order, nil
 }
 
-func (cs CustomerService) CreateOrder(login string, role int, orderDTO model.OrderCreationDTO) (int, error) {
+func (cs CustomerService) CreateOrder(login string, role int, deadline time.Time) (int, error) {
+	if role != 1 {
+		return 0, fmt.Errorf("You are not authorized for this operation")
+	}
+	or := *(cs.OrderRepository)
+	tr := *(cs.TaskRepository)
+	br := *(cs.BasketRepository)
+
 	price := 0
+	basket, basketErr := br.GetBasket(login)
+	if basketErr != nil {
+		return 0, basketErr
+	}
+	orderDTO := model.OrderCreationDTO{
+		Deadline: deadline,
+		Tasks:    basket,
+	}
 	for _, item := range orderDTO.Tasks {
 		price += item.ItemPrice * item.Amount
 	}
-	genericName := fmt.Sprintf("Заказ для пользователя %s до %2d.%2d.%4d на сумму %d.%d", login, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year(), price/100, price%100)
+	genericName := fmt.Sprintf("Заказ для пользователя %s до %02d.%02d.%4d на сумму %d.%d", login, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year(), price/100, price%100)
 	orderToSave := model.Order{
 		Name:          genericName,
 		Deadline:      orderDTO.Deadline,
 		CustomerLogin: login,
-		PriseTotal:    price,
+		PriceTotal:    price,
 		Status:        0,
 	}
 
-	createdId, orderRepoErr := cs.OrderRepository.SaveOrder(orderToSave)
+	tx, txErr := tr.Begin()
+	if txErr != nil {
+		return 0,
+			fmt.Errorf("Error starting transaction: %w", txErr)
+	}
+	createdId, orderRepoErr := or.SaveOrder(orderToSave)
 	if orderRepoErr != nil {
+		tx.Rollback()
 		return 0, fmt.Errorf("Error during saving order: \n%w", orderRepoErr)
 	}
 
 	for _, task := range orderDTO.Tasks {
-		taskGenericName := fmt.Sprintf("Задача: изготовление %s до %2d.%2d.%4d", task.Name, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year())
+		taskGenericName := fmt.Sprintf("Задача: изготовление %s до %02d.%02d.%4d", task.Name, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year())
 		taskToSave := model.Task{
 			Name:     taskGenericName,
 			OrderID:  createdId,
@@ -122,12 +152,14 @@ func (cs CustomerService) CreateOrder(login string, role int, orderDTO model.Ord
 			Finished: false,
 			Price:    task.Amount * task.ItemPrice,
 		}
-		_, taskRepoErr := cs.TaskRepository.SaveTask(taskToSave)
+		_, taskRepoErr := tr.SaveTask(taskToSave)
 		if taskRepoErr != nil {
+			tx.Rollback()
 			return 0, fmt.Errorf("Error during saving task %s: \n%w", taskToSave.ToString(), orderRepoErr)
 		}
 	}
 
+	tx.Commit()
 	return createdId, nil
 }
 
@@ -135,29 +167,30 @@ func (cs CustomerService) DeleteOrder(login string, role int, id int) (int, erro
 	if role != 1 {
 		return 0, fmt.Errorf("You are not authorized for this operation")
 	}
-	order, orderRepoErr := cs.OrderRepository.GetOrderById(id)
-	if orderRepoErr != nil {
-		return 0, fmt.Errorf("Error getting order by order ID: \n%w", orderRepoErr)
-	}
-	priceUnfinished := order.PriceUnfinished
-	tasks, taskRepoErr := cs.TaskRepository.GetTasksByContract(id)
+	or := *(cs.OrderRepository)
+	tr := *(cs.TaskRepository)
+
+	var priceUnfinished int
+	tasks, taskRepoErr := tr.GetTasksByContract(id)
 	if taskRepoErr != nil {
 		return 0, fmt.Errorf("Error getting tasks by order ID: \n%w", taskRepoErr)
 	}
 
-	tx, txErr := cs.TaskRepository.Begin()
+	tx, txErr := tr.Begin()
 	if txErr != nil {
 		return 0, fmt.Errorf("Error starting transaction")
 	}
 	for _, task := range tasks {
-		taskDeleteErr := cs.TaskRepository.DeleteTask(task.Id)
+		if !task.Finished {
+			priceUnfinished += task.Price
+		}
+		taskDeleteErr := tr.DeleteTask(task.ID)
 		if taskDeleteErr != nil {
 			tx.Rollback()
 			return 0, fmt.Errorf("Error deleting task %s by order ID: \n%w", task.ToString(), taskDeleteErr)
 		}
 	}
-
-	orderDeleteErr := cs.OrderRepository.DeleteOrder(id)
+	orderDeleteErr := or.DeleteOrder(id)
 	if orderDeleteErr != nil {
 		tx.Rollback()
 		return 0, fmt.Errorf("Error deleting order by ID: \n%w", orderDeleteErr)
@@ -167,7 +200,12 @@ func (cs CustomerService) DeleteOrder(login string, role int, id int) (int, erro
 }
 
 func (cs CustomerService) GetItems(login string, role int) ([]model.Item, error) {
-	items, itemRepoErr := cs.ItemRepository.GetAllItems()
+	if role != 1 {
+		return nil, fmt.Errorf("You are not authorized for this operation")
+	}
+	ir := *(cs.ItemRepository)
+
+	items, itemRepoErr := ir.GetAllItems()
 	if itemRepoErr != nil {
 		return nil, fmt.Errorf("Error getting items: \n%w", itemRepoErr)
 	}
@@ -180,7 +218,9 @@ func (cs CustomerService) GetBasket(login string, role int) ([]model.TaskCreatio
 		return nil,
 			fmt.Errorf("You are not authorized for this operation")
 	}
-	basket, basketErr := cs.BasketRepository.GetBasket(login)
+	br := *(cs.BasketRepository)
+
+	basket, basketErr := br.GetBasket(login)
 	if basketErr != nil {
 		return nil,
 			fmt.Errorf("Error getting customer basket: \n%w", basketErr)
@@ -193,8 +233,9 @@ func (cs CustomerService) SaveToBasket(login string, role int, item model.TaskCr
 	if role != 1 {
 		return fmt.Errorf("You are not authorized for this operation")
 	}
+	br := *(cs.BasketRepository)
 
-	saveErr := cs.BasketRepository.SaveToBasket(login, item)
+	saveErr := br.SaveToBasket(login, item)
 	if saveErr != nil {
 		return fmt.Errorf("Error saving item to basket: \n%w", saveErr)
 	}
@@ -205,11 +246,20 @@ func (cs CustomerService) DeleteFromBasket(login string, role int, itemId int) e
 	if role != 1 {
 		return fmt.Errorf("You are not authorized for this operation")
 	}
+	br := *(cs.BasketRepository)
 
-	deleteErr := cs.BasketRepository.DeleteFromBasket(login, itemId)
+	deleteErr := br.DeleteFromBasket(login, itemId)
 	if deleteErr != nil {
 		return fmt.Errorf("Error deleting item from basket: \n%w", deleteErr)
 	}
 
 	return nil
+}
+
+func (cs CustomerService) ClearBasket(login string, role int) error {
+	if role != 1 {
+		return fmt.Errorf("You are not authorized for this operation")
+	}
+	br := *cs.BasketRepository
+	return br.ClearBasket(login)
 }

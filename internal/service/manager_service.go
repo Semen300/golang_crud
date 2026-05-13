@@ -14,13 +14,13 @@ type IManagerService interface {
 }
 
 type ManagerService struct {
-	OrderRepository repository.IOrderRepository
-	TaskRepository  repository.ITaskRepository
-	UserRepository  repository.IUserRepository
+	OrderRepository *repository.IOrderRepository
+	TaskRepository  *repository.ITaskRepository
+	UserRepository  *repository.IUserRepository
 }
 
 func NewManagerService(or repository.IOrderRepository, tr repository.ITaskRepository, ur repository.IUserRepository) ManagerService {
-	return ManagerService{OrderRepository: or, TaskRepository: tr, UserRepository: ur}
+	return ManagerService{OrderRepository: &or, TaskRepository: &tr, UserRepository: &ur}
 }
 
 func (ms ManagerService) GetAllWorkers(login string, role int) ([]model.Worker, error) {
@@ -29,7 +29,9 @@ func (ms ManagerService) GetAllWorkers(login string, role int) ([]model.Worker, 
 			fmt.Errorf("You are not authorized for this operation")
 	}
 
-	workers, getErr := ms.UserRepository.GetWorkersByManager(login)
+	ur := *ms.UserRepository
+
+	workers, getErr := ur.GetWorkersByManager(login)
 	if getErr != nil {
 		return nil,
 			fmt.Errorf("Error getting workers by manager: \n%w", getErr)
@@ -43,14 +45,17 @@ func (ms ManagerService) GetAllOrders(login string, role int) ([]model.Order, er
 		return nil, fmt.Errorf("You are not authorized for this operation")
 	}
 
-	managerOrders, ordersErr := ms.OrderRepository.GetOrdersByManager(login)
-	emptyOrders, ordersErr := ms.OrderRepository.GetOrdersByManager("")
+	or := *ms.OrderRepository
+	tr := *ms.TaskRepository
+
+	managerOrders, ordersErr := or.GetOrdersByManager(login)
+	emptyOrders, ordersErr := or.GetOrdersByManager("")
 	if ordersErr != nil {
 		return nil,
 			fmt.Errorf("Error getting orders for manager %s:\n%w", login, ordersErr)
 	}
 
-	tasks, tasksErr := ms.TaskRepository.GetAllTasks()
+	tasks, tasksErr := tr.GetAllTasks()
 	if tasksErr != nil {
 		return nil,
 			fmt.Errorf("Error getting tasks:\n%w", tasksErr)
@@ -86,12 +91,15 @@ func (ms ManagerService) GetOrderById(login string, role int, id int) (model.Ord
 		return model.Order{}, fmt.Errorf("You are not authorized for this operation")
 	}
 
-	order, orderErr := ms.OrderRepository.GetOrderById(id)
+	or := *ms.OrderRepository
+	tr := *ms.TaskRepository
+
+	order, orderErr := or.GetOrderById(id)
 	if orderErr != nil {
 		return model.Order{},
 			fmt.Errorf("Error getting order by ID: \n%w", orderErr)
 	}
-	tasks, tasksErr := ms.TaskRepository.GetTasksByContract(id)
+	tasks, tasksErr := tr.GetTasksByContract(id)
 	if tasksErr != nil {
 		return model.Order{},
 			fmt.Errorf("Error getting tasks for order: \n%w", tasksErr)
@@ -117,14 +125,17 @@ func (ms ManagerService) AssignWorkerToOrder(login string, role int, id int, wor
 	if role != 3 {
 		return fmt.Errorf("You are not authorized for this operation")
 	}
-	order, getErr := ms.OrderRepository.GetOrderById(id)
+
+	or := *ms.OrderRepository
+
+	order, getErr := or.GetOrderById(id)
 	if getErr != nil {
 		return fmt.Errorf("Error getting order by ID: \n%w", getErr)
 	}
 	order.ManagerLogin = login
 	order.WorkerLogin = workerLogin
 	order.Status = 1
-	_, saveErr := ms.OrderRepository.SaveOrder(order)
+	_, saveErr := or.SaveOrder(order)
 	if saveErr != nil {
 		return fmt.Errorf("Error saving order: \n%w", saveErr)
 	}

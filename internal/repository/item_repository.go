@@ -53,7 +53,7 @@ func (i ItemRepository) GetAllItems() ([]model.Item, error) {
 	var items []model.Item = make([]model.Item, 0)
 	for rows.Next() {
 		var item model.Item
-		scanErr := rows.Scan(&item.Id, &item.Name, &item.Price)
+		scanErr := rows.Scan(&item.ID, &item.Name, &item.Price)
 		if scanErr != nil {
 			return nil,
 				fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
@@ -78,7 +78,7 @@ func (i ItemRepository) GetItemById(id int) (model.Item, error) {
 	WHERE id = $1`
 
 	var item model.Item
-	scanErr := i.Conn.QueryRow(query, id).Scan(&item.Id, &item.Name, &item.Price)
+	scanErr := i.Conn.QueryRow(query, id).Scan(&item.ID, &item.Name, &item.Price)
 	if scanErr != nil {
 		return model.Item{},
 			fmt.Errorf("Error scanning values from rows:\n %w", scanErr)

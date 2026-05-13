@@ -40,8 +40,8 @@ func TestGetOrdersByWorker200(t *testing.T) {
 
 	mockService := new(mockWorkerService)
 	mockOrders := []model.Order{
-		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2},
-		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 100.0, PriseTotal: 200, PriceUnfinished: 0, Status: 3},
+		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2},
+		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 100.0, PriceTotal: 200, PriceUnfinished: 0, Status: 3},
 	}
 	mockService.On("GetAllOrders", "worker1", 2).Return(mockOrders, nil)
 
@@ -65,8 +65,8 @@ func TestGetOrder200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockWorkerService)
-	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2}
-	mockService.On("GetOrderByID", "worker1", 2, 1).Return(mockOrder, nil)
+	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2}
+	mockService.On("GetOrderById", "worker1", 2, 1).Return(mockOrder, nil)
 
 	r := gin.New()
 	r.GET(workerPrefix+"/orders/:orderId", func(ctx *gin.Context) {

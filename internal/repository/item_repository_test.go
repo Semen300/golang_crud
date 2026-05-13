@@ -10,9 +10,9 @@ import (
 )
 
 var expectedItems []model.Item = []model.Item{
-	{Id: 1, Name: "item1", Price: 100},
-	{Id: 2, Name: "item2", Price: 200},
-	{Id: 3, Name: "item3", Price: 300},
+	{ID: 1, Name: "item1", Price: 100},
+	{ID: 2, Name: "item2", Price: 200},
+	{ID: 3, Name: "item3", Price: 300},
 }
 
 func migrateItems(db *sql.DB) {
@@ -33,7 +33,7 @@ func migrateItems(db *sql.DB) {
 		2, "item2", 200,
 		3, "item3", 300)
 	if queryErr != nil {
-		log.Fatal(fmt.Errorf("Error executing migration into table 'items': \nError adding values: \n%w", createErr))
+		log.Fatal(fmt.Errorf("Error executing migration into table 'items': \nError adding values: \n%w", queryErr))
 	}
 }
 

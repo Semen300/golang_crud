@@ -12,7 +12,7 @@ type IUserRepository interface {
 	SaveCustomer(model.Customer) error
 }
 
-// UserRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов.
+// UserRepository предназначен для выполнения операций, требующих доступа к БД, хранящих.
 type UserRepository struct {
 	Conn *sql.DB
 }

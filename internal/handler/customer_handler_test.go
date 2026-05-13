@@ -61,12 +61,17 @@ func (m *mockCustomerService) DeleteFromBasket(login string, role int, id int) e
 	return args.Error(0)
 }
 
+func (m *mockCustomerService) ClearBasket(login string, role int) error {
+	args := m.Called()
+	return args.Error(1)
+}
+
 func TestGetAllOrders200(t *testing.T) {
 	// Создаём мок-сервис и настраиваем его для возврата тестовых данных
 	mockService := new(mockCustomerService)
 	mockOrders := []model.Order{
-		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2},
-		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker2", CustomerLogin: "customer1", PercentOfComplition: 100.0, PriseTotal: 200, PriceUnfinished: 0, Status: 3},
+		{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2},
+		{ID: 2, Name: "Order 2", Deadline: time.Date(2026, time.May, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager2", WorkerLogin: "worker2", CustomerLogin: "customer1", PercentOfComplition: 100.0, PriceTotal: 200, PriceUnfinished: 0, Status: 3},
 	}
 	mockService.On("GetOrdersByCustomer", "customer1", 1).Return(mockOrders, nil)
 
@@ -124,7 +129,7 @@ func TestGet500(t *testing.T) {
 func TestGetCustomerOrder(t *testing.T) {
 	// Создаём мок-сервис и настраиваем его для возврата тестовых данных
 	mockService := new(mockCustomerService)
-	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriseTotal: 100, PriceUnfinished: 50, Status: 2}
+	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2}
 	mockService.On("GetOrderByID", "customer1", 1, 1).Return(mockOrder, nil)
 
 	r := gin.New()
@@ -276,8 +281,8 @@ func TestDeleteOrder(t *testing.T) {
 func TestGetItems(t *testing.T) {
 	mockService := new(mockCustomerService)
 	mockItems := []model.Item{
-		{Id: 1, Name: "Item 1", Price: 100},
-		{Id: 2, Name: "Item 2", Price: 200},
+		{ID: 1, Name: "Item 1", Price: 100},
+		{ID: 2, Name: "Item 2", Price: 200},
 	}
 	mockService.On("GetItems", "customer1", 1).Return(mockItems, nil)
 
@@ -300,9 +305,9 @@ func TestGetItems(t *testing.T) {
 
 func TestGetBasket(t *testing.T) {
 	mockService := new(mockCustomerService)
-	mockBasket := []model.Task{
-		{Id: 1, Name: "Task 1", OrderID: 1, ItemID: 1, Amount: 2, Finished: false, Price: 100},
-		{Id: 2, Name: "Task 2", OrderID: 1, ItemID: 2, Amount: 1, Finished: false, Price: 50},
+	mockBasket := []model.TaskCreationDTO{
+		{ItemID: 1, Name: "Item1", ItemPrice: 10, Amount: 2},
+		{ItemID: 2, Name: "Item2", ItemPrice: 10, Amount: 3},
 	}
 	mockService.On("GetBasket", "customer1", 1).Return(mockBasket, nil)
 
@@ -318,14 +323,14 @@ func TestGetBasket(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var responseBasket []model.Task
+	var responseBasket []model.TaskCreationDTO
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &responseBasket))
 	assert.Equal(t, mockBasket, responseBasket)
 }
 
 func TestSaveToBasket(t *testing.T) {
 	mockService := new(mockCustomerService)
-	basketItem := model.TaskCreationDTO{ItemID: 3, Amount: 5}
+	basketItem := model.TaskCreationDTO{ItemID: 3, Name: "Item1", ItemPrice: 10, Amount: 5}
 	mockService.On("SaveToBasket", "customer1", 1, basketItem).Return(nil)
 
 	r := gin.New()

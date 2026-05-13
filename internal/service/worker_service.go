@@ -13,12 +13,12 @@ type IWorkerService interface {
 }
 
 type WorkerService struct {
-	OrderRepository repository.IOrderRepository
-	TaskRepository  repository.ITaskRepository
+	OrderRepository *repository.IOrderRepository
+	TaskRepository  *repository.ITaskRepository
 }
 
 func NewWorkerService(or repository.IOrderRepository, tr repository.ITaskRepository) WorkerService {
-	return WorkerService{OrderRepository: or, TaskRepository: tr}
+	return WorkerService{OrderRepository: &or, TaskRepository: &tr}
 }
 
 func (ws WorkerService) GetAllOrders(login string, role int) ([]model.Order, error) {
@@ -26,13 +26,16 @@ func (ws WorkerService) GetAllOrders(login string, role int) ([]model.Order, err
 		return nil,
 			fmt.Errorf("You are not authorized for this operation")
 	}
-	orders, ordersErr := ws.OrderRepository.GetOrdersByWorker(login)
+	or := *ws.OrderRepository
+	tr := *ws.TaskRepository
+
+	orders, ordersErr := or.GetOrdersByWorker(login)
 	if ordersErr != nil {
 		return nil,
 			fmt.Errorf("Error getting orders by Worker: \n%w", ordersErr)
 	}
 
-	tasks, tasksErr := ws.TaskRepository.GetAllTasks()
+	tasks, tasksErr := tr.GetAllTasks()
 	if tasksErr != nil {
 		return nil,
 			fmt.Errorf("Error getting tasks by Worker:\n%w", tasksErr)
@@ -66,14 +69,16 @@ func (ws WorkerService) GetOrderById(login string, role int, id int) (model.Orde
 	if role != 2 {
 		return model.Order{}, fmt.Errorf("You are not authorized for this operation")
 	}
+	or := *ws.OrderRepository
+	tr := *ws.TaskRepository
 
-	order, ordersErr := ws.OrderRepository.GetOrderById(id)
+	order, ordersErr := or.GetOrderById(id)
 	if ordersErr != nil {
 		return model.Order{},
 			fmt.Errorf("Error getting orders by Worker: \n%w", ordersErr)
 	}
 
-	tasks, tasksErr := ws.TaskRepository.GetTasksByContract(id)
+	tasks, tasksErr := tr.GetTasksByContract(id)
 	if tasksErr != nil {
 		return model.Order{},
 			fmt.Errorf("Error getting tasks by Worker:\n%w", tasksErr)
@@ -100,26 +105,32 @@ func (ws WorkerService) SetTaskCompleted(login string, role int, id int) error {
 	if role != 2 {
 		return fmt.Errorf("You are not authorized for this operation")
 	}
+	or := *ws.OrderRepository
+	tr := *ws.TaskRepository
 
-	task, taskErr := ws.TaskRepository.GetTaskById(id)
+	task, taskErr := tr.GetTaskById(id)
 	if taskErr != nil {
 		return fmt.Errorf("Error getting task: \n%w", taskErr)
 	}
 
-	order, orderErr := ws.OrderRepository.GetOrderById(task.OrderID)
+	order, orderErr := or.GetOrderById(task.OrderID)
 	if orderErr != nil {
 		return fmt.Errorf("Error getting order: \n%w", orderErr)
 	}
 
-	tasks, tasksErr := ws.TaskRepository.GetTasksByContract(order.ID)
+	tasks, tasksErr := tr.GetTasksByContract(order.ID)
 	if tasksErr != nil {
 		return fmt.Errorf("Error getting task: \n%w", tasksErr)
 	}
-
+	tx, txErr := tr.Begin()
+	if txErr != nil {
+		return fmt.Errorf("Error starting transaction: \n%w", txErr)
+	}
 	var taskToChange *model.Task
-	for _, tsk := range tasks {
-		if tsk.Id == id {
-			taskToChange = &tsk
+	for i, tsk := range tasks {
+		if tsk.ID == id {
+			taskToChange = &tasks[i]
+			break
 		}
 	}
 
@@ -141,15 +152,18 @@ func (ws WorkerService) SetTaskCompleted(login string, role int, id int) error {
 		order.Status = 2
 	}
 
-	_, orderSaveErr := ws.OrderRepository.SaveOrder(order)
+	_, orderSaveErr := or.SaveOrder(order)
 	if orderSaveErr != nil {
+		tx.Rollback()
 		return fmt.Errorf("Error updating order:\n%w", orderSaveErr)
 	}
 
-	_, taskSaveErr := ws.TaskRepository.SaveTask(*taskToChange)
+	_, taskSaveErr := tr.SaveTask(*taskToChange)
 	if taskSaveErr != nil {
+		tx.Rollback()
 		return fmt.Errorf("Error updating task:\n%w", taskSaveErr)
 	}
 
+	tx.Commit()
 	return nil
 }
