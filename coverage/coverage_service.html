@@ -1,0 +1,908 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>service: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">crud-go/internal/service/auth_service.go (0.0%)</option>
+				
+				<option value="file1">crud-go/internal/service/customer_service.go (78.2%)</option>
+				
+				<option value="file2">crud-go/internal/service/hashing_service.go (0.0%)</option>
+				
+				<option value="file3">crud-go/internal/service/manager_service.go (84.1%)</option>
+				
+				<option value="file4">crud-go/internal/service/worker_service.go (82.2%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package service
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/repository"
+        "fmt"
+        "time"
+
+        "github.com/golang-jwt/jwt/v5"
+        "github.com/google/uuid"
+)
+
+type IAuthService interface {
+        RegisterNewCustomer(string, string, string, string, string) error
+        Login(string, string) (model.Claims, string, string, error)
+        Refresh(string) (string, error)
+        Logout(string) error
+        GenerateAccessToken(model.Claims) (string, error)
+        GenerateRefreshToken(model.Claims) (string, string, time.Time, error)
+        ParseAccessToken(string) (model.Claims, error)
+        ParseRefreshToken(string) (model.Claims, error)
+}
+
+type AuthService struct {
+        UserRepo        *repository.IUserRepository
+        TokenRepo       *repository.ITokenRepository
+        accessLifetime  int
+        refreshLifetime int
+        accessKey       string
+        refreshKey      string
+}
+
+func NewAuthService(ur repository.IUserRepository, tr repository.ITokenRepository, accessLifetime, refreshLifetime int, accessKey, refreshKey string) AuthService <span class="cov0" title="0">{
+        return AuthService{
+                UserRepo:        &amp;ur,
+                TokenRepo:       &amp;tr,
+                accessLifetime:  accessLifetime,
+                refreshLifetime: refreshLifetime,
+                accessKey:       accessKey,
+                refreshKey:      refreshKey,
+        }
+}</span>
+
+func (as AuthService) RegisterNewCustomer(login, password, fio, number, email string) error <span class="cov0" title="0">{
+        ur := *as.UserRepo
+        hashedPass := CreateHash(password)
+        customerToSave := model.NewCustomer(login, hashedPass, fio, number, email)
+        saveErr := ur.SaveCustomer(customerToSave)
+        if saveErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error creating new customer: \n%w", saveErr)
+        }</span>
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (as AuthService) Login(login, password string) (model.Claims, string, string, error) <span class="cov0" title="0">{
+        ur := *as.UserRepo
+        tr := *as.TokenRepo
+        role, savedPassword, err := ur.GetRoleByLogin(login)
+        if err != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", err
+        }</span>
+        <span class="cov0" title="0">hashedPass := CreateHash(password)
+        if hashedPass != savedPassword </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", fmt.Errorf("Incorrect login or password")
+        }</span>
+
+        <span class="cov0" title="0">accessToken, atErr := as.GenerateAccessToken(
+                model.Claims{
+                        Login: login,
+                        Role:  role,
+                },
+        )
+        if atErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", atErr
+        }</span>
+
+        <span class="cov0" title="0">rTokenId, refreshToken, expirationTime, rtErr := as.GenerateRefreshToken(
+                model.Claims{
+                        Login: login,
+                        Role:  role,
+                },
+        )
+        if rtErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", rtErr
+        }</span>
+
+        <span class="cov0" title="0">revokeErr := tr.Revoke(login)
+        if revokeErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", revokeErr
+        }</span>
+
+        <span class="cov0" title="0">saveErr := tr.Save(rTokenId, login, refreshToken, expirationTime)
+        if saveErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, "", "", saveErr
+        }</span>
+
+        <span class="cov0" title="0">return model.Claims{
+                        Login: login,
+                        Role:  role,
+                },
+                accessToken,
+                refreshToken,
+                nil</span>
+}
+
+func (as AuthService) Refresh(refreshTokenStr string) (string, error) <span class="cov0" title="0">{
+        tr := *as.TokenRepo
+        claims, parseErr := as.ParseRefreshToken(refreshTokenStr)
+        if parseErr != nil </span><span class="cov0" title="0">{
+                return "", parseErr
+        }</span>
+        <span class="cov0" title="0">refreshToken, getErr := tr.GetTokenByLogin(claims.Login)
+        if getErr != nil </span><span class="cov0" title="0">{
+                return "", getErr
+        }</span>
+
+        <span class="cov0" title="0">if refreshToken.Revoked || refreshToken.ExpiresAt.Before(time.Now()) </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("Error: refresh token invalid\n")
+        }</span>
+
+        <span class="cov0" title="0">return as.GenerateAccessToken(claims)</span>
+}
+
+func (as AuthService) Logout(login string) error <span class="cov0" title="0">{
+        tr := *as.TokenRepo
+        return tr.Revoke(login)
+}</span>
+
+func (as AuthService) GenerateAccessToken(claims model.Claims) (string, error) <span class="cov0" title="0">{
+        expirationTime := time.Now().Add(time.Duration(as.accessLifetime))
+        claims.ExpiresAt = jwt.NewNumericDate(expirationTime)
+
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+        return token.SignedString([]byte(as.accessKey))
+}</span>
+
+func (as AuthService) GenerateRefreshToken(claims model.Claims) (string, string, time.Time, error) <span class="cov0" title="0">{
+        expirationTime := time.Now().Add(time.Duration(as.refreshLifetime))
+        claims.ExpiresAt = jwt.NewNumericDate(expirationTime)
+
+        tokenID := uuid.NewString()
+        claims.ID = tokenID
+
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+        tokenStr, tokenErr := token.SignedString([]byte(as.refreshKey))
+        return tokenID, tokenStr, expirationTime, tokenErr
+}</span>
+
+func (as AuthService) ParseAccessToken(tokenStr string) (model.Claims, error) <span class="cov0" title="0">{
+        token, parseErr := jwt.ParseWithClaims(
+                tokenStr,
+                &amp;model.Claims{},
+                func(t *jwt.Token) (any, error) </span><span class="cov0" title="0">{
+                        if t.Method != jwt.SigningMethodHS256 </span><span class="cov0" title="0">{
+                                return nil, jwt.ErrTokenSignatureInvalid
+                        }</span>
+                        <span class="cov0" title="0">return as.accessKey, nil</span>
+                },
+        )
+        <span class="cov0" title="0">if parseErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, parseErr
+        }</span>
+
+        <span class="cov0" title="0">claims, ok := token.Claims.(model.Claims)
+        if !ok </span><span class="cov0" title="0">{
+                return model.Claims{}, jwt.ErrTokenInvalidClaims
+        }</span>
+
+        <span class="cov0" title="0">if !token.Valid </span><span class="cov0" title="0">{
+                return model.Claims{}, jwt.ErrTokenMalformed
+        }</span>
+
+        <span class="cov0" title="0">return claims, nil</span>
+}
+
+func (as AuthService) ParseRefreshToken(tokenStr string) (model.Claims, error) <span class="cov0" title="0">{
+        token, parseErr := jwt.ParseWithClaims(
+                tokenStr,
+                &amp;model.Claims{},
+                func(t *jwt.Token) (any, error) </span><span class="cov0" title="0">{
+                        if t.Method != jwt.SigningMethodHS256 </span><span class="cov0" title="0">{
+                                return nil, jwt.ErrTokenSignatureInvalid
+                        }</span>
+                        <span class="cov0" title="0">return as.refreshKey, nil</span>
+                })
+
+        <span class="cov0" title="0">if parseErr != nil </span><span class="cov0" title="0">{
+                return model.Claims{}, parseErr
+        }</span>
+
+        <span class="cov0" title="0">claims, ok := token.Claims.(model.Claims)
+        if !ok </span><span class="cov0" title="0">{
+                return model.Claims{}, jwt.ErrTokenInvalidClaims
+        }</span>
+
+        <span class="cov0" title="0">if !token.Valid </span><span class="cov0" title="0">{
+                return model.Claims{}, jwt.ErrTokenMalformed
+        }</span>
+
+        <span class="cov0" title="0">return claims, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package service
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/repository"
+        "fmt"
+        "time"
+)
+
+type ICustomerService interface {
+        GetOrdersByCustomer(login string, role int) ([]model.Order, error)
+        GetOrderById(login string, role int, id int) (model.Order, error)
+        CreateOrder(login string, role int, deadline time.Time) (int, error)
+        DeleteOrder(login string, role int, id int) (int, error)
+        GetItems(login string, role int) ([]model.Item, error)
+        GetBasket(login string, role int) ([]model.TaskCreationDTO, error)
+        SaveToBasket(login string, role int, item model.TaskCreationDTO) error
+        DeleteFromBasket(login string, role int, id int) error
+        ClearBasket(login string, role int) error
+}
+
+type CustomerService struct {
+        OrderRepository  *repository.IOrderRepository
+        TaskRepository   *repository.ITaskRepository
+        BasketRepository *repository.IBasketRepository
+        ItemRepository   *repository.IItemRepository
+}
+
+func NewCustomerService(or repository.IOrderRepository, tr repository.ITaskRepository, br repository.IBasketRepository, ir repository.IItemRepository) CustomerService <span class="cov8" title="1">{
+        return CustomerService{OrderRepository: &amp;or, TaskRepository: &amp;tr, BasketRepository: &amp;br, ItemRepository: &amp;ir}
+}</span>
+
+func (cs CustomerService) GetOrdersByCustomer(login string, role int) ([]model.Order, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *(cs.OrderRepository)
+        tr := *(cs.TaskRepository)
+
+        orders, orderRepoErr := or.GetOrdersByCustomer(login)
+        if orderRepoErr != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("Error getting orders by customer login: \n%w", orderRepoErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, taskRepoErr := tr.GetAllTasks()
+        if taskRepoErr != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("Error getting tasks from TaskRepository: \n%w", taskRepoErr)
+        }</span>
+        <span class="cov8" title="1">tasksByOrder := make(map[int][]model.Task)
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                tasksByOrder[task.OrderID] = append(tasksByOrder[task.OrderID], task)
+        }</span>
+
+        <span class="cov8" title="1">for i, order := range orders </span><span class="cov8" title="1">{
+                orders[i].Tasks = tasksByOrder[order.ID]
+                var numberItemsCompleted, numberItemsAll int
+                var priceUnfinished int
+                for _, task := range tasksByOrder[order.ID] </span><span class="cov8" title="1">{
+                        if task.Finished </span><span class="cov8" title="1">{
+                                numberItemsCompleted += task.Amount
+                        }</span> else<span class="cov8" title="1"> {
+                                priceUnfinished += task.Price
+                        }</span>
+                        <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+                }
+                <span class="cov8" title="1">orders[i].PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+                orders[i].PriceUnfinished = priceUnfinished</span>
+        }
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+func (cs CustomerService) GetOrderById(login string, role int, id int) (model.Order, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *(cs.OrderRepository)
+        tr := *(cs.TaskRepository)
+
+        order, orderRepoErr := or.GetOrderById(id)
+        if orderRepoErr != nil </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("Error getting order by order ID: \n%w", orderRepoErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, taskRepoErr := tr.GetTasksByContract(id)
+        if taskRepoErr != nil </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("Error getting tasks by order ID: \n%w", taskRepoErr)
+        }</span>
+        <span class="cov8" title="1">var numberItemsCompleted, numberItemsAll int
+        var priceUnfinished int
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                if task.Finished </span><span class="cov8" title="1">{
+                        numberItemsCompleted += task.Amount
+                }</span> else<span class="cov8" title="1"> {
+                        priceUnfinished += task.Price
+                }</span>
+                <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+        }
+
+        <span class="cov8" title="1">order.PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+        order.PriceUnfinished = priceUnfinished
+        order.Tasks = tasks
+        return order, nil</span>
+}
+
+func (cs CustomerService) CreateOrder(login string, role int, deadline time.Time) (int, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *(cs.OrderRepository)
+        tr := *(cs.TaskRepository)
+        br := *(cs.BasketRepository)
+
+        price := 0
+        basket, basketErr := br.GetBasket(login)
+        if basketErr != nil </span><span class="cov0" title="0">{
+                return 0, basketErr
+        }</span>
+        <span class="cov8" title="1">orderDTO := model.OrderCreationDTO{
+                Deadline: deadline,
+                Tasks:    basket,
+        }
+        for _, item := range orderDTO.Tasks </span><span class="cov8" title="1">{
+                price += item.ItemPrice * item.Amount
+        }</span>
+        <span class="cov8" title="1">genericName := fmt.Sprintf("Заказ для пользователя %s до %02d.%02d.%4d на сумму %d.%d", login, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year(), price/100, price%100)
+        orderToSave := model.Order{
+                Name:          genericName,
+                Deadline:      orderDTO.Deadline,
+                CustomerLogin: login,
+                PriceTotal:    price,
+                Status:        0,
+        }
+
+        tx, txErr := tr.Begin()
+        if txErr != nil </span><span class="cov0" title="0">{
+                return 0,
+                        fmt.Errorf("Error starting transaction: %w", txErr)
+        }</span>
+        <span class="cov8" title="1">createdId, orderRepoErr := or.SaveOrder(orderToSave)
+        if orderRepoErr != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                return 0, fmt.Errorf("Error during saving order: \n%w", orderRepoErr)
+        }</span>
+
+        <span class="cov8" title="1">for _, task := range orderDTO.Tasks </span><span class="cov8" title="1">{
+                taskGenericName := fmt.Sprintf("Задача: изготовление %s до %02d.%02d.%4d", task.Name, orderDTO.Deadline.Day(), orderDTO.Deadline.Month(), orderDTO.Deadline.Year())
+                taskToSave := model.Task{
+                        Name:     taskGenericName,
+                        OrderID:  createdId,
+                        ItemID:   task.ItemID,
+                        Amount:   task.Amount,
+                        Finished: false,
+                        Price:    task.Amount * task.ItemPrice,
+                }
+                _, taskRepoErr := tr.SaveTask(taskToSave)
+                if taskRepoErr != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        return 0, fmt.Errorf("Error during saving task %s: \n%w", taskToSave.ToString(), orderRepoErr)
+                }</span>
+        }
+
+        <span class="cov8" title="1">tx.Commit()
+        return createdId, nil</span>
+}
+
+func (cs CustomerService) DeleteOrder(login string, role int, id int) (int, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *(cs.OrderRepository)
+        tr := *(cs.TaskRepository)
+
+        var priceUnfinished int
+        tasks, taskRepoErr := tr.GetTasksByContract(id)
+        if taskRepoErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error getting tasks by order ID: \n%w", taskRepoErr)
+        }</span>
+
+        <span class="cov8" title="1">tx, txErr := tr.Begin()
+        if txErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error starting transaction")
+        }</span>
+        <span class="cov8" title="1">for _, task := range tasks </span><span class="cov8" title="1">{
+                if !task.Finished </span><span class="cov8" title="1">{
+                        priceUnfinished += task.Price
+                }</span>
+                <span class="cov8" title="1">taskDeleteErr := tr.DeleteTask(task.ID)
+                if taskDeleteErr != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        return 0, fmt.Errorf("Error deleting task %s by order ID: \n%w", task.ToString(), taskDeleteErr)
+                }</span>
+        }
+        <span class="cov8" title="1">orderDeleteErr := or.DeleteOrder(id)
+        if orderDeleteErr != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                return 0, fmt.Errorf("Error deleting order by ID: \n%w", orderDeleteErr)
+        }</span>
+        <span class="cov8" title="1">tx.Commit()
+        return priceUnfinished, nil</span>
+}
+
+func (cs CustomerService) GetItems(login string, role int) ([]model.Item, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">ir := *(cs.ItemRepository)
+
+        items, itemRepoErr := ir.GetAllItems()
+        if itemRepoErr != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("Error getting items: \n%w", itemRepoErr)
+        }</span>
+
+        <span class="cov8" title="1">return items, nil</span>
+}
+
+func (cs CustomerService) GetBasket(login string, role int) ([]model.TaskCreationDTO, error) <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">br := *(cs.BasketRepository)
+
+        basket, basketErr := br.GetBasket(login)
+        if basketErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting customer basket: \n%w", basketErr)
+        }</span>
+
+        <span class="cov8" title="1">return basket, nil</span>
+}
+
+func (cs CustomerService) SaveToBasket(login string, role int, item model.TaskCreationDTO) error <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">br := *(cs.BasketRepository)
+
+        saveErr := br.SaveToBasket(login, item)
+        if saveErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error saving item to basket: \n%w", saveErr)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (cs CustomerService) DeleteFromBasket(login string, role int, itemId int) error <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">br := *(cs.BasketRepository)
+
+        deleteErr := br.DeleteFromBasket(login, itemId)
+        if deleteErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error deleting item from basket: \n%w", deleteErr)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (cs CustomerService) ClearBasket(login string, role int) error <span class="cov8" title="1">{
+        if role != 1 </span><span class="cov0" title="0">{
+                return fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">br := *cs.BasketRepository
+        return br.ClearBasket(login)</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package service
+
+import (
+        "crypto/sha256"
+        "encoding/hex"
+)
+
+func CreateHash(data string) string <span class="cov0" title="0">{
+        hashed := sha256.Sum256([]byte(data))
+        return hex.EncodeToString(hashed[:])
+}</span>
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package service
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/repository"
+        "fmt"
+)
+
+type IManagerService interface {
+        GetAllWorkers(string, int) ([]model.Worker, error)
+        GetAllOrders(string, int) ([]model.Order, error)
+        GetOrderById(string, int, int) (model.Order, error)
+        AssignWorkerToOrder(string, int, int, string) error
+}
+
+type ManagerService struct {
+        OrderRepository *repository.IOrderRepository
+        TaskRepository  *repository.ITaskRepository
+        UserRepository  *repository.IUserRepository
+}
+
+func NewManagerService(or repository.IOrderRepository, tr repository.ITaskRepository, ur repository.IUserRepository) ManagerService <span class="cov8" title="1">{
+        return ManagerService{OrderRepository: &amp;or, TaskRepository: &amp;tr, UserRepository: &amp;ur}
+}</span>
+
+func (ms ManagerService) GetAllWorkers(login string, role int) ([]model.Worker, error) <span class="cov8" title="1">{
+        if role != 3 </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("You are not authorized for this operation")
+        }</span>
+
+        <span class="cov8" title="1">ur := *ms.UserRepository
+
+        workers, getErr := ur.GetWorkersByManager(login)
+        if getErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting workers by manager: \n%w", getErr)
+        }</span>
+
+        <span class="cov8" title="1">return workers, nil</span>
+}
+
+func (ms ManagerService) GetAllOrders(login string, role int) ([]model.Order, error) <span class="cov8" title="1">{
+        if role != 3 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+
+        <span class="cov8" title="1">or := *ms.OrderRepository
+        tr := *ms.TaskRepository
+
+        managerOrders, ordersErr := or.GetOrdersByManager(login)
+        emptyOrders, ordersErr := or.GetOrdersByManager("")
+        if ordersErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting orders for manager %s:\n%w", login, ordersErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, tasksErr := tr.GetAllTasks()
+        if tasksErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting tasks:\n%w", tasksErr)
+        }</span>
+
+        <span class="cov8" title="1">orders := append(managerOrders, emptyOrders...)
+        tasksMap := make(map[int][]model.Task, 0)
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                tasksMap[task.OrderID] = append(tasksMap[task.OrderID], task)
+        }</span>
+
+        <span class="cov8" title="1">for i, order := range orders </span><span class="cov8" title="1">{
+                orders[i].Tasks = tasksMap[order.ID]
+                var numberItemsCompleted, numberItemsAll int
+                var priceUnfinished int
+                for _, task := range tasksMap[order.ID] </span><span class="cov8" title="1">{
+                        if task.Finished </span><span class="cov8" title="1">{
+                                numberItemsCompleted += task.Amount
+                        }</span> else<span class="cov8" title="1"> {
+                                priceUnfinished += task.Price
+                        }</span>
+                        <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+                }
+                <span class="cov8" title="1">orders[i].PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+                orders[i].PriceUnfinished = priceUnfinished</span>
+        }
+
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+func (ms ManagerService) GetOrderById(login string, role int, id int) (model.Order, error) <span class="cov8" title="1">{
+        if role != 3 </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+
+        <span class="cov8" title="1">or := *ms.OrderRepository
+        tr := *ms.TaskRepository
+
+        order, orderErr := or.GetOrderById(id)
+        if orderErr != nil </span><span class="cov0" title="0">{
+                return model.Order{},
+                        fmt.Errorf("Error getting order by ID: \n%w", orderErr)
+        }</span>
+        <span class="cov8" title="1">tasks, tasksErr := tr.GetTasksByContract(id)
+        if tasksErr != nil </span><span class="cov0" title="0">{
+                return model.Order{},
+                        fmt.Errorf("Error getting tasks for order: \n%w", tasksErr)
+        }</span>
+        <span class="cov8" title="1">order.Tasks = tasks
+        var numberItemsCompleted, numberItemsAll int
+        var priceUnfinished int
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                if task.Finished </span><span class="cov8" title="1">{
+                        numberItemsCompleted += task.Amount
+                }</span> else<span class="cov8" title="1"> {
+                        priceUnfinished += task.Price
+                }</span>
+                <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+        }
+        <span class="cov8" title="1">order.PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+        order.PriceUnfinished = priceUnfinished
+
+        return order, nil</span>
+}
+
+func (ms ManagerService) AssignWorkerToOrder(login string, role int, id int, workerLogin string) error <span class="cov8" title="1">{
+        if role != 3 </span><span class="cov0" title="0">{
+                return fmt.Errorf("You are not authorized for this operation")
+        }</span>
+
+        <span class="cov8" title="1">or := *ms.OrderRepository
+
+        order, getErr := or.GetOrderById(id)
+        if getErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error getting order by ID: \n%w", getErr)
+        }</span>
+        <span class="cov8" title="1">order.ManagerLogin = login
+        order.WorkerLogin = workerLogin
+        order.Status = 1
+        _, saveErr := or.SaveOrder(order)
+        if saveErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error saving order: \n%w", saveErr)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package service
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/repository"
+        "fmt"
+)
+
+type IWorkerService interface {
+        GetAllOrders(string, int) ([]model.Order, error)
+        GetOrderById(string, int, int) (model.Order, error)
+        SetTaskCompleted(string, int, int) error
+}
+
+type WorkerService struct {
+        OrderRepository *repository.IOrderRepository
+        TaskRepository  *repository.ITaskRepository
+}
+
+func NewWorkerService(or repository.IOrderRepository, tr repository.ITaskRepository) WorkerService <span class="cov8" title="1">{
+        return WorkerService{OrderRepository: &amp;or, TaskRepository: &amp;tr}
+}</span>
+
+func (ws WorkerService) GetAllOrders(login string, role int) ([]model.Order, error) <span class="cov8" title="1">{
+        if role != 2 </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *ws.OrderRepository
+        tr := *ws.TaskRepository
+
+        orders, ordersErr := or.GetOrdersByWorker(login)
+        if ordersErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting orders by Worker: \n%w", ordersErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, tasksErr := tr.GetAllTasks()
+        if tasksErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error getting tasks by Worker:\n%w", tasksErr)
+        }</span>
+
+        <span class="cov8" title="1">tasksMap := make(map[int][]model.Task, 0)
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                tasksMap[task.OrderID] = append(tasksMap[task.OrderID], task)
+        }</span>
+
+        <span class="cov8" title="1">for i, order := range orders </span><span class="cov8" title="1">{
+                orders[i].Tasks = tasksMap[order.ID]
+                var numberItemsCompleted, numberItemsAll int
+                var priceUnfinished int
+                for _, task := range tasksMap[order.ID] </span><span class="cov8" title="1">{
+                        if task.Finished </span><span class="cov8" title="1">{
+                                numberItemsCompleted += task.Amount
+                        }</span> else<span class="cov8" title="1"> {
+                                priceUnfinished += task.Price
+                        }</span>
+                        <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+                }
+                <span class="cov8" title="1">orders[i].PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+                orders[i].PriceUnfinished = priceUnfinished</span>
+        }
+
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+func (ws WorkerService) GetOrderById(login string, role int, id int) (model.Order, error) <span class="cov8" title="1">{
+        if role != 2 </span><span class="cov0" title="0">{
+                return model.Order{}, fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *ws.OrderRepository
+        tr := *ws.TaskRepository
+
+        order, ordersErr := or.GetOrderById(id)
+        if ordersErr != nil </span><span class="cov0" title="0">{
+                return model.Order{},
+                        fmt.Errorf("Error getting orders by Worker: \n%w", ordersErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, tasksErr := tr.GetTasksByContract(id)
+        if tasksErr != nil </span><span class="cov0" title="0">{
+                return model.Order{},
+                        fmt.Errorf("Error getting tasks by Worker:\n%w", tasksErr)
+        }</span>
+
+        <span class="cov8" title="1">var numberItemsCompleted, numberItemsAll int
+        var priceUnfinished int
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                if task.Finished </span><span class="cov8" title="1">{
+                        numberItemsCompleted += task.Amount
+                }</span> else<span class="cov8" title="1"> {
+                        priceUnfinished += task.Price
+                }</span>
+                <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+        }
+        <span class="cov8" title="1">order.PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+        order.PriceUnfinished = priceUnfinished
+        order.Tasks = tasks
+
+        return order, nil</span>
+}
+
+func (ws WorkerService) SetTaskCompleted(login string, role int, id int) error <span class="cov8" title="1">{
+        if role != 2 </span><span class="cov0" title="0">{
+                return fmt.Errorf("You are not authorized for this operation")
+        }</span>
+        <span class="cov8" title="1">or := *ws.OrderRepository
+        tr := *ws.TaskRepository
+
+        task, taskErr := tr.GetTaskById(id)
+        if taskErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error getting task: \n%w", taskErr)
+        }</span>
+
+        <span class="cov8" title="1">order, orderErr := or.GetOrderById(task.OrderID)
+        if orderErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error getting order: \n%w", orderErr)
+        }</span>
+
+        <span class="cov8" title="1">tasks, tasksErr := tr.GetTasksByContract(order.ID)
+        if tasksErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error getting task: \n%w", tasksErr)
+        }</span>
+        <span class="cov8" title="1">tx, txErr := tr.Begin()
+        if txErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error starting transaction: \n%w", txErr)
+        }</span>
+        <span class="cov8" title="1">var taskToChange *model.Task
+        for i, tsk := range tasks </span><span class="cov8" title="1">{
+                if tsk.ID == id </span><span class="cov8" title="1">{
+                        taskToChange = &amp;tasks[i]
+                        break</span>
+                }
+        }
+
+        <span class="cov8" title="1">taskToChange.Finished = true
+        var numberItemsCompleted, numberItemsAll int
+        var priceUnfinished int
+        for _, task := range tasks </span><span class="cov8" title="1">{
+                if task.Finished </span><span class="cov8" title="1">{
+                        numberItemsCompleted += task.Amount
+                }</span> else<span class="cov0" title="0"> {
+                        priceUnfinished += task.Price
+                }</span>
+                <span class="cov8" title="1">numberItemsAll += task.Amount</span>
+        }
+
+        <span class="cov8" title="1">order.PercentOfComplition = float64(numberItemsCompleted) / float64(numberItemsAll)
+        order.PriceUnfinished = priceUnfinished
+        if priceUnfinished == 0 </span><span class="cov8" title="1">{
+                order.Status = 2
+        }</span>
+
+        <span class="cov8" title="1">_, orderSaveErr := or.SaveOrder(order)
+        if orderSaveErr != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                return fmt.Errorf("Error updating order:\n%w", orderSaveErr)
+        }</span>
+
+        <span class="cov8" title="1">_, taskSaveErr := tr.SaveTask(*taskToChange)
+        if taskSaveErr != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                return fmt.Errorf("Error updating task:\n%w", taskSaveErr)
+        }</span>
+
+        <span class="cov8" title="1">tx.Commit()
+        return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

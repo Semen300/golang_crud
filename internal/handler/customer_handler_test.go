@@ -26,19 +26,19 @@ func (m *mockCustomerService) GetOrdersByCustomer(login string, role int) ([]mod
 	return args.Get(0).([]model.Order), args.Error(1)
 }
 
-func (m *mockCustomerService) GetOrderByID(login string, role int, id int) (model.Order, error) {
+func (m *mockCustomerService) GetOrderById(login string, role int, id int) (model.Order, error) {
 	args := m.Called(login, role, id)
 	return args.Get(0).(model.Order), args.Error(1)
 }
 
-func (m *mockCustomerService) CreateOrder(login string, role int, orderDTO model.OrderCreationDTO) (int, error) {
-	args := m.Called(login, role, orderDTO)
+func (m *mockCustomerService) CreateOrder(login string, role int, deadline time.Time) (int, error) {
+	args := m.Called(login, role, deadline)
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mockCustomerService) DeleteOrder(login string, role int, id int) error {
+func (m *mockCustomerService) DeleteOrder(login string, role int, id int) (int, error) {
 	args := m.Called(login, role, id)
-	return args.Error(0)
+	return args.Int(0), args.Error(1)
 }
 
 func (m *mockCustomerService) GetItems(login string, role int) ([]model.Item, error) {
@@ -130,7 +130,7 @@ func TestGetCustomerOrder(t *testing.T) {
 	// Создаём мок-сервис и настраиваем его для возврата тестовых данных
 	mockService := new(mockCustomerService)
 	mockOrder := model.Order{ID: 1, Name: "Order 1", Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC), ManagerLogin: "manager1", WorkerLogin: "worker1", CustomerLogin: "customer1", PercentOfComplition: 50.0, PriceTotal: 100, PriceUnfinished: 50, Status: 2}
-	mockService.On("GetOrderByID", "customer1", 1, 1).Return(mockOrder, nil)
+	mockService.On("GetOrderById", "customer1", 1, 1).Return(mockOrder, nil)
 
 	r := gin.New()
 	r.GET(customerPrefix+"/orders/:id", func(ctx *gin.Context) {
@@ -242,7 +242,7 @@ func TestCreateOrder(t *testing.T) {
 			{ItemID: 1, Amount: 2},
 			{ItemID: 2, Amount: 1},
 		}}
-	mockService.On("CreateOrder", "customer1", 1, orderDTO).Return(1, nil)
+	mockService.On("CreateOrder", "customer1", 1, orderDTO.Deadline).Return(1, nil)
 
 	r := gin.New()
 	r.POST(customerPrefix+"/orders", func(ctx *gin.Context) {
@@ -262,7 +262,7 @@ func TestCreateOrder(t *testing.T) {
 
 func TestDeleteOrder(t *testing.T) {
 	mockService := new(mockCustomerService)
-	mockService.On("DeleteOrder", "customer1", 1, 1).Return(nil)
+	mockService.On("DeleteOrder", "customer1", 1, 1).Return(1, nil)
 
 	r := gin.New()
 	r.DELETE(customerPrefix+"/orders/:id", func(ctx *gin.Context) {

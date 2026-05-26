@@ -1,0 +1,670 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handler: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">crud-go/internal/handler/auth_handler.go (100.0%)</option>
+				
+				<option value="file1">crud-go/internal/handler/customer_handler.go (77.2%)</option>
+				
+				<option value="file2">crud-go/internal/handler/manager_handler.go (75.0%)</option>
+				
+				<option value="file3">crud-go/internal/handler/worker_handler.go (73.5%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handler
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/service"
+        "net/http"
+
+        "github.com/gin-gonic/gin"
+)
+
+type AuthHandler struct {
+        authService service.IAuthService
+}
+
+func NewAuthHandler(authService service.IAuthService) AuthHandler <span class="cov8" title="1">{
+        return AuthHandler{authService: authService}
+}</span>
+
+// Register служит для регистрации нового пользователя.
+//
+// Принимает контекст запроса и сервис для работы с аутентификацией,
+// извлекает данные регистрации из тела запроса и передаёт их в сервис для создания нового клиента.
+// В случае успеха возвращает сообщение об успешной регистрации, иначе - сообщение об ошибке.
+func (ah *AuthHandler) Register(ctx *gin.Context) <span class="cov8" title="1">{
+        var registrationData model.Customer
+        if err := ctx.ShouldBindJSON(&amp;registrationData); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+                return
+        }</span>
+        <span class="cov8" title="1">serviceErr := ah.authService.RegisterNewCustomer(registrationData.Login, registrationData.Password, registrationData.Fio, registrationData.Number, registrationData.Email)
+        if serviceErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error during registration: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, gin.H{"message": "Registration successful"})</span>
+}
+
+// Login служит для аутентификации пользователя и выдачи ему токенов доступа.
+//
+// Принимает контекст запроса и сервис для работы с аутентификацией,
+// извлекает данные аутентификации из тела запроса и передаёт их в сервис для проверки.
+// В случае успеха возвращает роль пользователя, токен доступа, токен обновления и время жизни токена доступа, иначе - сообщение об ошибке.
+func (ah *AuthHandler) Login(ctx *gin.Context) <span class="cov8" title="1">{
+        var credentials struct {
+                Login    string `json:"login"`
+                Password string `json:"password"`
+        }
+
+        if err := ctx.ShouldBindJSON(&amp;credentials); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+                return
+        }</span>
+        <span class="cov8" title="1">claims, accessToken, RefreshToken, serviceErr := ah.authService.Login(credentials.Login, credentials.Password)
+        if serviceErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid login or password: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, gin.H{
+                "claims":       claims,
+                "accessToken":  accessToken,
+                "refreshToken": RefreshToken,
+        })</span>
+}
+
+// RefreshToken служит для обновления токена доступа с помощью токена обновления.
+//
+// Принимает контекст запроса и сервис для работы с аутентификацией,
+// извлекает токен обновления из тела запроса и передаёт его в сервис для проверки.
+// В случае успеха возвращает новый токен доступа и время его жизни, иначе - сообщение об ошибке.
+func (ah *AuthHandler) RefreshToken(ctx *gin.Context) <span class="cov8" title="1">{
+        var request struct {
+                RefreshToken string `json:"refreshToken"`
+        }
+        if err := ctx.ShouldBindJSON(&amp;request); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+                return
+        }</span>
+        <span class="cov8" title="1">accessToken, serviceErr := ah.authService.Refresh(request.RefreshToken)
+        if serviceErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, gin.H{
+                "accessToken": accessToken,
+        })</span>
+}
+
+// Logout служит для выхода пользователя из системы.
+//
+// Принимает контекст запроса и сервис для работы с аутентификацией,
+// извлекает токен обновления из тела запроса и передаёт его в сервис для проверки.
+// В случае успеха возвращает сообщение об успешном выходе, иначе - сообщение об ошибке.
+func (ah *AuthHandler) Logout(ctx *gin.Context) <span class="cov8" title="1">{
+        var request struct {
+                Login string `json:"login"`
+        }
+        if err := ctx.ShouldBindJSON(&amp;request); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+                return
+        }</span>
+        <span class="cov8" title="1">serviceErr := ah.authService.Logout(request.Login)
+        if serviceErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error during logout: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, gin.H{"message": "Successfully logged out"})</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handler
+
+import (
+        "crud-go/internal/model"
+        "crud-go/internal/service"
+        "net/http"
+        "strconv"
+
+        "github.com/gin-gonic/gin"
+)
+
+// CustomerHandler предназначен для обработки HTTP-запросов, связанных с заказами и товарами клиентов.
+type CustomerHandler struct {
+        CustomerService service.ICustomerService
+}
+
+// NewCustomerHandler создаёт новый обработчик для работы с заказами и товарами клиентов.
+//
+// Принимает сервис для работы с клиентами,
+// возвращает новый экземпляр обработчика.
+func NewCustomerHandler(customerService service.ICustomerService) CustomerHandler <span class="cov8" title="1">{
+        return CustomerHandler{
+                CustomerService: customerService,
+        }
+}</span>
+
+// getUserInfo служит для извлечения логина и роли пользователя из контекста запроса.
+//
+// Принимает контекст запроса, возвращает логин и роль пользователя.
+// Если логин или роль отсутствуют, или если возникает ошибка при их извлечении, функция отправляет соответствующий HTTP-ответ и возвращает пустые значения.
+func getUserInfo(ctx *gin.Context) (string, int) <span class="cov8" title="1">{
+
+        //Извлекаем логин и роль из контекста
+        login, loginExists := ctx.Get("login")
+        role, roleExists := ctx.Get("role")
+
+        if !loginExists || !roleExists </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+                return "", 0
+        }</span>
+
+        // Удостоверяем тип логина и роли
+        <span class="cov8" title="1">loginStr, loginOk := login.(string)
+        roleInt, roleOk := role.(int)
+        if !loginOk || !roleOk </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth data"})
+                return "", 0
+        }</span>
+
+        <span class="cov8" title="1">return loginStr, roleInt</span>
+}
+
+// GetAllOrders предназначена для получения всех заказов клиента.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// возвращает список всех заказов, связанных с клиентом, который сделал запрос.
+func (ch CustomerHandler) GetAllOrders(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov8" title="1">{
+                return
+        }</span>
+        //Получаем заказы клиента через сервис по логину и роли
+        <span class="cov8" title="1">orders, serviceErr := ch.CustomerService.GetOrdersByCustomer(login, role)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving orders: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем список заказов в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, orders)</span>
+}
+
+// GetCustomerOrder предназначена для получения конкретного заказа клиента по его ID.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// возвращает заказ, связанный с клиентом, который сделал запрос, и имеющий указанный ID.
+func (ch CustomerHandler) GetCustomerOrder(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        //Извлекаем ID заказа из параметров URL
+        <span class="cov8" title="1">id, paramErr := strconv.Atoi(ctx.Param("id"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+                return
+        }</span>
+        <span class="cov8" title="1">order, serviceErr := ch.CustomerService.GetOrderById(login, role, id)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем заказ в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, order)</span>
+}
+
+// CreateOrder предназначена для создания нового заказа клиента.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// возвращает статус 201 Created и URL нового заказа в заголовке Location.
+func (ch CustomerHandler) CreateOrder(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Создаем новый заказ через сервис, используя данные из тела запроса
+        <span class="cov8" title="1">var orderDTO model.OrderCreationDTO
+        if err := ctx.ShouldBindJSON(&amp;orderDTO); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">createdOrderId, serviceErr := ch.CustomerService.CreateOrder(login, role, orderDTO.Deadline)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error creating order: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Устанавливаем параметр Location в заголовке ответа, указывающий на URL нового заказа, и возвращаем статус 201 Created
+        <span class="cov8" title="1">ctx.Header("Location", "/customer/orders/"+strconv.Itoa(createdOrderId))
+        ctx.Status(http.StatusCreated)
+        ctx.Writer.WriteHeaderNow()</span>
+}
+
+// DeleteOrder предназначена для удаления заказа клиента по его ID.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// удаляет заказ, связанный с клиентом, который сделал запрос, и имеющий указанный ID.
+func (ch CustomerHandler) DeleteOrder(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+
+        //Извлекаем ID заказа из параметров URL
+        <span class="cov8" title="1">id, paramErr := strconv.Atoi(ctx.Param("id"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+                return
+        }</span>
+
+        //Удаляем заказ через сервис, используя логин, роль и ID заказа
+        <span class="cov8" title="1">_, serviceErr := ch.CustomerService.DeleteOrder(login, role, id)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error deleting order: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.Status(http.StatusNoContent)
+        ctx.Writer.WriteHeaderNow()</span>
+}
+
+// GetItems предназначена для получения списка всех товаров (каталога).
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// возвращает список всех товаров, доступных для заказа.
+func (ch CustomerHandler) GetItems(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Получаем список всех товаров через сервис
+        <span class="cov8" title="1">items, serviceErr := ch.CustomerService.GetItems(login, role)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving items: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем список товаров в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, items)</span>
+}
+
+// GetBasket предназначена для получения текущей корзины клиента.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// возвращает текущую корзину клиента, который сделал запрос.
+func (ch CustomerHandler) GetBasket(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Получаем корзину клиента через сервис по логину и роли
+        <span class="cov8" title="1">basket, serviceErr := ch.CustomerService.GetBasket(login, role)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving basket: " + serviceErr.Error()})
+                return
+        }</span>
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, basket)</span>
+}
+
+// SaveToBasket предназначена для сохранения товара в корзину клиента.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// сохраняет товар в корзину клиента, который сделал запрос, используя DTO товара, переданный в теле запроса.
+func (ch CustomerHandler) SaveToBasket(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Извлекаем DTO товара из тела запроса
+        <span class="cov8" title="1">var item model.TaskCreationDTO
+        if err := ctx.ShouldBindJSON(&amp;item); err != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid item data: " + err.Error()})
+                return
+        }</span>
+        //Сохраняем товар в корзину через сервис, используя логин, роль и данные товара
+        <span class="cov8" title="1">serviceErr := ch.CustomerService.SaveToBasket(login, role, item)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error saving item to basket: " + serviceErr.Error()})
+                return
+        }</span>
+
+        <span class="cov8" title="1">ctx.Status(http.StatusOK)
+        ctx.Writer.WriteHeaderNow()</span>
+}
+
+// DeleteFromBasket предназначена для удаления товара из корзины клиента.
+//
+// Принимает контекст запроса и сервис для работы с клиентами,
+// удаляет товар из корзины клиента, который сделал запрос, используя ID товара, переданный в параметрах URL.
+func (ch CustomerHandler) DeleteFromBasket(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль клиента из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Извлекаем ID товара из параметров URL
+        <span class="cov8" title="1">id, paramErr := strconv.Atoi(ctx.Param("id"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+                return
+        }</span>
+        //Удаляем товар из корзины через сервис, используя логин, роль и ID товара
+        <span class="cov8" title="1">serviceErr := ch.CustomerService.DeleteFromBasket(login, role, id)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error deleting item from basket: " + serviceErr.Error()})
+                return
+        }</span>
+
+        <span class="cov8" title="1">ctx.Status(http.StatusOK)
+        ctx.Writer.WriteHeaderNow()</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package handler
+
+import (
+        "crud-go/internal/service"
+        "net/http"
+        "strconv"
+
+        "github.com/gin-gonic/gin"
+)
+
+type ManagerHandler struct {
+        managerService service.IManagerService
+}
+
+func NewManagerHandler(managerService service.IManagerService) ManagerHandler <span class="cov8" title="1">{
+        return ManagerHandler{managerService: managerService}
+}</span>
+
+func (mh ManagerHandler) GetAllWorkers(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль менеджера из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Получаем работников менеджера через сервис по логину и роли
+        <span class="cov8" title="1">workers, workerErr := mh.managerService.GetAllWorkers(login, role)
+        if workerErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving workers: " + workerErr.Error()})
+        }</span>
+
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, workers)</span>
+}
+
+func (mh ManagerHandler) GetOrdersByManager(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль менеджера из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Получаем заказы менеджера через сервис по логину и роли
+        <span class="cov8" title="1">orders, serviceErr := mh.managerService.GetAllOrders(login, role)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving orders: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем список заказов в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, orders)</span>
+}
+
+func (mh ManagerHandler) GetOrderByID(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль менеджера из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        // Получаем ID заказа из параметров URL и преобразуем его в целое число
+        <span class="cov8" title="1">orderID, paramErr := strconv.Atoi(ctx.Param("id"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+                return
+        }</span>
+
+        //Получаем заказ менеджера через сервис по логину, роли и ID заказа
+        <span class="cov8" title="1">order, serviceErr := mh.managerService.GetOrderById(login, role, orderID)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
+                return
+        }</span>
+        //Возвращаем заказ в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, order)</span>
+}
+
+func (mh ManagerHandler) AssignWorkerToOrder(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль менеджера из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        // Получаем ID заказа из параметров URL и преобразуем его в целое число
+        <span class="cov8" title="1">orderID, paramErr := strconv.Atoi(ctx.Param("id"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+                return
+        }</span>
+        // Получаем логин рабочего из тела запроса
+        <span class="cov8" title="1">var requestBody struct {
+                WorkerLogin string `json:"workerLogin"`
+        }
+        if bindErr := ctx.ShouldBindJSON(&amp;requestBody); bindErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + bindErr.Error()})
+                return
+        }</span>
+        //Устанавливаем логин рабочего для заказа через сервис по логину, роли, ID заказа и логину рабочего
+        <span class="cov8" title="1">serviceErr := mh.managerService.AssignWorkerToOrder(login, role, orderID, requestBody.WorkerLogin)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error setting worker login: " + serviceErr.Error()})
+                return
+        }</span>
+        //Возвращаем статус 200 OK без тела ответа
+        <span class="cov8" title="1">ctx.Status(http.StatusOK)</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package handler
+
+import (
+        "net/http"
+        "strconv"
+
+        "crud-go/internal/service"
+
+        "github.com/gin-gonic/gin"
+)
+
+type WorkerHandler struct {
+        workerService service.IWorkerService
+}
+
+func NewWorkerHandler(workerService service.IWorkerService) WorkerHandler <span class="cov8" title="1">{
+        return WorkerHandler{workerService: workerService}
+}</span>
+
+// GetOrdersByWorker предназначена для получения всех заказов, назначенных рабочему.
+//
+// Принимает контекст запроса и сервис для работы с рабочими,
+// возвращает список всех заказов, связанных с рабочим, который сделал запрос.
+func (wh *WorkerHandler) GetOrdersByWorker(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль рабочего из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        //Получаем заказы рабочего через сервис по логину и роли
+        <span class="cov8" title="1">orders, serviceErr := wh.workerService.GetAllOrders(login, role)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving orders: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем список заказов в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, orders)</span>
+}
+
+// GetOrder предназначена для получения информации о конкретном заказе, назначенном рабочему.
+//
+// Принимает контекст запроса и сервис для работы с рабочими,
+// возвращает информацию о заказе с указанным ID.
+func (wh WorkerHandler) GetOrder(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль рабочего из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        // Получаем ID заказа из параметров URL и преобразуем его в целое число
+        <span class="cov8" title="1">orderID, paramErr := strconv.Atoi(ctx.Param("orderId"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+                return
+        }</span>
+
+        //Получаем заказ рабочего через сервис по логину, роли и ID заказа
+        <span class="cov8" title="1">order, serviceErr := wh.workerService.GetOrderById(login, role, orderID)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Возвращаем заказ в формате JSON
+        <span class="cov8" title="1">ctx.JSON(http.StatusOK, order)</span>
+}
+
+// SetTaskCompleted предназначена для установки статуса задачи как выполненной.
+//
+// Принимает контекст запроса и сервис для работы с рабочими,
+// устанавливает статус задачи как выполненной по ID задачи, указанному в URL, для рабочего, который сделал запрос.
+// В случае успеха возвращает статус 204 No Content и URL задачи в заголовке Location, иначе - сообщение об ошибке.
+func (wh WorkerHandler) SetTaskCompleted(ctx *gin.Context) <span class="cov8" title="1">{
+        //Извлекаем логин и роль рабочего из контекста
+        login, role := getUserInfo(ctx)
+        if login == "" || role == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        // Получаем ID задачи из параметров URL и преобразуем его в целое число
+        <span class="cov8" title="1">taskID, paramErr := strconv.Atoi(ctx.Param("taskId"))
+        if paramErr != nil </span><span class="cov8" title="1">{
+                ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+                return
+        }</span>
+
+        //Устанавливаем задачу как выполненную через сервис по логину, роли и ID задачи
+        <span class="cov8" title="1">serviceErr := wh.workerService.SetTaskCompleted(login, role, taskID)
+        if serviceErr != nil </span><span class="cov0" title="0">{
+                ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error setting task as completed: " + serviceErr.Error()})
+                return
+        }</span>
+
+        //Устанавливаем параметр Location в заголовке ответа, указывая на URL задачи, которая была установлена как выполненная
+        <span class="cov8" title="1">ctx.Header("Location", "/tasks/"+strconv.Itoa(taskID))
+        ctx.Status(http.StatusNoContent)</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

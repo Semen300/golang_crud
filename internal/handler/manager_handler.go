@@ -55,7 +55,7 @@ func (mh ManagerHandler) GetOrderByID(ctx *gin.Context) {
 		return
 	}
 	// Получаем ID заказа из параметров URL и преобразуем его в целое число
-	orderID, paramErr := strconv.Atoi(ctx.Param("orderId"))
+	orderID, paramErr := strconv.Atoi(ctx.Param("id"))
 	if paramErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
@@ -78,7 +78,7 @@ func (mh ManagerHandler) AssignWorkerToOrder(ctx *gin.Context) {
 		return
 	}
 	// Получаем ID заказа из параметров URL и преобразуем его в целое число
-	orderID, paramErr := strconv.Atoi(ctx.Param("orderId"))
+	orderID, paramErr := strconv.Atoi(ctx.Param("id"))
 	if paramErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return

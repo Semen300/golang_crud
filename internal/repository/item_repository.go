@@ -8,7 +8,7 @@ import (
 
 type IItemRepository interface {
 	GetAllItems() ([]model.Item, error)
-	GetItemByID(int) (model.Item, error)
+	GetItemById(int) (model.Item, error)
 }
 
 // ItemRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список товаров.

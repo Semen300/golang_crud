@@ -50,13 +50,13 @@ func (ah *AuthHandler) Login(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	role, accessToken, RefreshToken, serviceErr := ah.authService.Login(credentials.Login, credentials.Password)
+	claims, accessToken, RefreshToken, serviceErr := ah.authService.Login(credentials.Login, credentials.Password)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid login or password: " + serviceErr.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
-		"role":         role,
+		"claims":       claims,
 		"accessToken":  accessToken,
 		"refreshToken": RefreshToken,
 	})
@@ -92,13 +92,13 @@ func (ah *AuthHandler) RefreshToken(ctx *gin.Context) {
 // В случае успеха возвращает сообщение об успешном выходе, иначе - сообщение об ошибке.
 func (ah *AuthHandler) Logout(ctx *gin.Context) {
 	var request struct {
-		RefreshToken string `json:"refreshToken"`
+		Login string `json:"login"`
 	}
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	serviceErr := ah.authService.Logout(request.RefreshToken)
+	serviceErr := ah.authService.Logout(request.Login)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error during logout: " + serviceErr.Error()})
 		return

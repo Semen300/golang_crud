@@ -1,0 +1,1172 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>repository: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">crud-go/internal/repository/basket_repository.go (77.3%)</option>
+				
+				<option value="file1">crud-go/internal/repository/item_repository.go (80.8%)</option>
+				
+				<option value="file2">crud-go/internal/repository/order_repository.go (83.0%)</option>
+				
+				<option value="file3">crud-go/internal/repository/repository.go (66.7%)</option>
+				
+				<option value="file4">crud-go/internal/repository/task_repository.go (80.3%)</option>
+				
+				<option value="file5">crud-go/internal/repository/token_repository.go (85.7%)</option>
+				
+				<option value="file6">crud-go/internal/repository/user_repository.go (76.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package repository
+
+import (
+        "context"
+        "crud-go/internal/model"
+        "database/sql"
+        "fmt"
+)
+
+type IBasketRepository interface {
+        GetBasket(string) ([]model.TaskCreationDTO, error)
+        SaveToBasket(string, model.TaskCreationDTO) error
+        DeleteFromBasket(string, int) error
+        ClearBasket(string) error
+
+        Begin() (Tx, error)
+        BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error)
+}
+
+type BasketRepository struct {
+        Conn *sql.DB
+}
+
+func NewBasketRepository(db *sql.DB) (BasketRepository, error) <span class="cov8" title="1">{
+        basketCreationQuery := `CREATE TABLE IF NOT EXISTS basket_items(
+        customerLogin TEXT,
+        itemID SERIAL,
+        name TEXT,
+        itemPrice INTEGER,
+        amount INTEGER,
+        PRIMARY KEY (customerLogin, itemID))`
+
+        _, creationErr := db.Exec(basketCreationQuery)
+        if creationErr != nil </span><span class="cov0" title="0">{
+                return BasketRepository{}, fmt.Errorf("Error creating table 'basket_items': \n%w", creationErr)
+        }</span>
+        <span class="cov8" title="1">return BasketRepository{db}, nil</span>
+}
+
+func (br BasketRepository) Begin() (Tx, error) <span class="cov0" title="0">{
+        return br.Conn.Begin()
+}</span>
+
+func (br BasketRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error) <span class="cov0" title="0">{
+        return br.Conn.BeginTx(ctx, opts)
+}</span>
+
+func (br BasketRepository) GetBasket(customerLogin string) ([]model.TaskCreationDTO, error) <span class="cov8" title="1">{
+        query := `SELECT bi.itemID, bi.name, bi.itemPrice, bi.amount
+        FROM basket_items bi
+        WHERE customerLogin = $1`
+
+        rows, queryErr := br.Conn.Query(query, customerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">tasks := make([]model.TaskCreationDTO, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var taskDTO model.TaskCreationDTO
+                scanErr := rows.Scan(&amp;taskDTO.ItemID, &amp;taskDTO.Name, &amp;taskDTO.ItemPrice, &amp;taskDTO.Amount)
+                if scanErr != nil </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("Error scanning values from rows: \n%w", scanErr)
+                }</span>
+                <span class="cov8" title="1">tasks = append(tasks, taskDTO)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("Error processing rows: \n%w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return tasks, nil</span>
+}
+
+func (br BasketRepository) SaveToBasket(customerLogin string, toSave model.TaskCreationDTO) error <span class="cov8" title="1">{
+        selectQuery := `SELECT *
+        FROM basket_items
+        WHERE customerLogin = $1 AND itemID = $2`
+        rows, selectQueryErr := br.Conn.Query(selectQuery, customerLogin, toSave.ItemID)
+        if selectQueryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", selectQuery, selectQueryErr)
+        }</span>
+        <span class="cov8" title="1">isPresent := rows.Next()
+        saveQuery := ""
+        if isPresent </span><span class="cov8" title="1">{
+                saveQuery = `UPDATE basket_items
+                SET name = $3,
+                itemPrice = $4,
+                amount = $5 
+                WHERE customerLogin = $1 AND itemID = $2`
+        }</span> else<span class="cov8" title="1"> {
+                saveQuery = `INSERT INTO basket_items 
+                VALUES ($1, $2, $3, $4, $5)`
+        }</span>
+
+        <span class="cov8" title="1">_, queryErr := br.Conn.Exec(saveQuery,
+                customerLogin,
+                toSave.ItemID,
+                toSave.Name,
+                toSave.ItemPrice,
+                toSave.Amount)
+
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", saveQuery, queryErr)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (br BasketRepository) DeleteFromBasket(customerLogin string, itemID int) error <span class="cov8" title="1">{
+        query := `DELETE FROM basket_items
+        WHERE customerLogin = $1 AND itemID = $2`
+        _, queryErr := br.Conn.Exec(query, customerLogin, itemID)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (br BasketRepository) ClearBasket(customerLogin string) error <span class="cov8" title="1">{
+        query := `DELETE FROM basket_items
+        WHERE customerLogin = $1`
+        _, queryErr := br.Conn.Exec(query, customerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"basket_items\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package repository
+
+import (
+        "crud-go/internal/model"
+        "database/sql"
+        "fmt"
+)
+
+type IItemRepository interface {
+        GetAllItems() ([]model.Item, error)
+        GetItemById(int) (model.Item, error)
+}
+
+// ItemRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список товаров.
+type ItemRepository struct {
+        Conn *sql.DB
+}
+
+// NewOrderRepository создаёт новый репозиторий для доступа к функционалу товаров.
+// Также проводит инициализацию таблицы "items".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
+func NewItemRepository(db *sql.DB) (ItemRepository, error) <span class="cov8" title="1">{
+        query := `CREATE TABLE IF NOT EXISTS items(
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        price SERIAL)`
+
+        _, migrationErr := db.Exec(query)
+        if migrationErr != nil </span><span class="cov0" title="0">{
+                return ItemRepository{},
+                        fmt.Errorf("Error creating table \"orders\":\n %w", migrationErr)
+        }</span>
+        <span class="cov8" title="1">return ItemRepository{db}, nil</span>
+}
+
+// GetAllItems служит для получения всех товаров, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех товаров и возможную ошибку.
+func (i ItemRepository) GetAllItems() ([]model.Item, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM items`
+
+        rows, queryErr := i.Conn.Query(query)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var items []model.Item = make([]model.Item, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var item model.Item
+                scanErr := rows.Scan(&amp;item.ID, &amp;item.Name, &amp;item.Price)
+                if scanErr != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+                }</span>
+                <span class="cov8" title="1">items = append(items, item)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+        <span class="cov8" title="1">return items, nil</span>
+}
+
+// GetItemById служит для получения товара по его ID.
+//
+// Принимает ID искомого товара,
+// возвращает искомый товар и возможную ошибку.
+func (i ItemRepository) GetItemById(id int) (model.Item, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM items
+        WHERE id = $1`
+
+        var item model.Item
+        scanErr := i.Conn.QueryRow(query, id).Scan(&amp;item.ID, &amp;item.Name, &amp;item.Price)
+        if scanErr != nil </span><span class="cov0" title="0">{
+                return model.Item{},
+                        fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+        }</span>
+
+        <span class="cov8" title="1">return item, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package repository
+
+import (
+        "crud-go/internal/model"
+        "database/sql"
+        "fmt"
+)
+
+type IOrderRepository interface {
+        GetAllOrders() ([]model.Order, error)
+        GetOrdersByManager(string) ([]model.Order, error)
+        GetOrdersByWorker(string) ([]model.Order, error)
+        GetOrdersByCustomer(string) ([]model.Order, error)
+        GetOrderById(int) (model.Order, error)
+        SaveOrder(model.Order) (int, error)
+        DeleteOrder(int) error
+}
+
+// OrderRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список заказов.
+type OrderRepository struct {
+        Conn      *sql.DB // Подключение к БД
+        CurrentID int     // ID последнего заказа в таблице
+}
+
+// NewOrderRepository создаёт новый репозиторий для доступа к функционалу заказов.
+// Также проводит инициализацию таблиц "orders".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
+//
+// TODO: применить паттерн "синглтон" для создания одного экземпляра репозитория
+func NewOrderRepository(db *sql.DB) (OrderRepository, error) <span class="cov8" title="1">{
+        ordersCreationQuery := `CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        deadline DATE,
+        managerLogin TEXT,
+        workerLogin TEXT,
+        customerLogin TEXT,
+        status SERIAL,
+        price SERIAL
+        )`
+        _, migrationErr := db.Exec(ordersCreationQuery)
+        if migrationErr != nil </span><span class="cov0" title="0">{
+                return OrderRepository{},
+                        fmt.Errorf("Error creating table \"orders\":\n %w", migrationErr)
+        }</span>
+        <span class="cov8" title="1">return OrderRepository{db, 0}, nil</span>
+}
+
+// GetAllOrders служит для получения всех заказов, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех заказов и возможную ошибку.
+func (c OrderRepository) GetAllOrders() ([]model.Order, error) <span class="cov8" title="1">{
+        orderQuery := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
+        FROM orders o`
+
+        rows, querryErr := c.Conn.Query(orderQuery)
+        if querryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", orderQuery, querryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var orders []model.Order = make([]model.Order, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var order model.Order
+                scanError := rows.Scan(&amp;order.ID,
+                        &amp;order.Name,
+                        &amp;order.Deadline,
+                        &amp;order.ManagerLogin,
+                        &amp;order.WorkerLogin,
+                        &amp;order.CustomerLogin,
+                        &amp;order.Status,
+                        &amp;order.PriceTotal)
+                if scanError != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanError)
+                }</span>
+                <span class="cov8" title="1">orders = append(orders, order)</span>
+        }
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+// GetOrdersByManager служит для получения всех заказов, назначенных определённому менеджеру.
+//
+// Принимает логин менеджера, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
+func (c OrderRepository) GetOrdersByManager(managerLogin string) ([]model.Order, error) <span class="cov8" title="1">{
+        query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
+        FROM orders o
+        WHERE o.managerLogin = $1`
+
+        rows, queryErr := c.Conn.Query(query, managerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var orders []model.Order = make([]model.Order, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var order model.Order
+                scanError := rows.Scan(&amp;order.ID,
+                        &amp;order.Name,
+                        &amp;order.Deadline,
+                        &amp;order.ManagerLogin,
+                        &amp;order.WorkerLogin,
+                        &amp;order.CustomerLogin,
+                        &amp;order.Status,
+                        &amp;order.PriceTotal)
+                if scanError != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanError)
+                }</span>
+                <span class="cov8" title="1">orders = append(orders, order)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+// GetOrdersByWorker служит для получения всех заказов, назначенных определённому работнику.
+//
+// Принимает логин работника, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
+func (c OrderRepository) GetOrdersByWorker(workerLogin string) ([]model.Order, error) <span class="cov8" title="1">{
+        query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
+        FROM orders o
+        WHERE o.workerLogin = $1`
+
+        rows, queryErr := c.Conn.Query(query, workerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var orders []model.Order = make([]model.Order, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var order model.Order
+                scanError := rows.Scan(&amp;order.ID,
+                        &amp;order.Name,
+                        &amp;order.Deadline,
+                        &amp;order.ManagerLogin,
+                        &amp;order.WorkerLogin,
+                        &amp;order.CustomerLogin,
+                        &amp;order.Status,
+                        &amp;order.PriceTotal)
+                if scanError != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanError)
+                }</span>
+                <span class="cov8" title="1">orders = append(orders, order)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+// GetOrdersByCustomer служит для получения всех заказов, оформленных заказчиком.
+//
+// Принимает логин заказчика, для которого нужно получить заказы,
+// возвращает список заказов и возможную ошибку.
+func (c OrderRepository) GetOrdersByCustomer(customerLogin string) ([]model.Order, error) <span class="cov8" title="1">{
+        query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
+        FROM orders o
+        WHERE o.customerLogin = $1`
+
+        rows, queryErr := c.Conn.Query(query, customerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var orders []model.Order = make([]model.Order, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var order model.Order
+                scanError := rows.Scan(&amp;order.ID,
+                        &amp;order.Name,
+                        &amp;order.Deadline,
+                        &amp;order.ManagerLogin,
+                        &amp;order.WorkerLogin,
+                        &amp;order.CustomerLogin,
+                        &amp;order.Status,
+                        &amp;order.PriceTotal)
+                if scanError != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanError)
+                }</span>
+                <span class="cov8" title="1">orders = append(orders, order)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return orders, nil</span>
+}
+
+// GetOrderById служит для получения заказа по его ID.
+//
+// Принимает ID искомого заказа,
+// возвращает искомый заказ и возможную ошибку.
+func (c OrderRepository) GetOrderById(id int) (model.Order, error) <span class="cov8" title="1">{
+        query := `SELECT o.id, o.name, o.deadline, o.managerLogin, o.workerLogin, o.customerLogin, o.status, o.price
+        FROM orders o
+        WHERE o.id = $1`
+        var order model.Order
+
+        scanError := c.Conn.QueryRow(query, id).Scan(&amp;order.ID, &amp;order.Name, &amp;order.Deadline,
+                &amp;order.ManagerLogin,
+                &amp;order.WorkerLogin,
+                &amp;order.CustomerLogin,
+                &amp;order.Status,
+                &amp;order.PriceTotal)
+        if scanError != nil </span><span class="cov8" title="1">{
+                if scanError == sql.ErrNoRows </span><span class="cov8" title="1">{
+                        return model.Order{},
+                                nil
+                }</span>
+                <span class="cov0" title="0">return model.Order{},
+                        fmt.Errorf("Error scanning values from rows:\n %w", scanError)</span>
+        }
+        <span class="cov8" title="1">return order, nil</span>
+}
+
+// SaveOrder служит для идемпотентного сохранения заказа.
+// В случае, если сохраняемый заказ существует в БД, обновляет его,
+// иначе создаёт новый заказ.
+//
+// Принимает заказ, который нужно сохранить,
+// возвращает возможную ошибку.
+func (o *OrderRepository) SaveOrder(order model.Order) (int, error) <span class="cov8" title="1">{
+        selectQuery := `SELECT * 
+        FROM orders
+        WHERE id = $1
+        `
+        rows, queryErr := o.Conn.Query(selectQuery, order.ID)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", selectQuery, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        isPresent := rows.Next()
+        var saveQuery string
+        var idToUpdate int
+        if !isPresent </span><span class="cov8" title="1">{
+                saveQuery = `INSERT INTO orders 
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8)`
+                idToUpdate = o.CurrentID + 1
+        }</span> else<span class="cov8" title="1"> {
+                saveQuery = `UPDATE orders 
+                SET name=$2,
+                deadline=$3,
+                managerLogin=$4,
+                workerLogin=$5,
+                customerLogin=$6,
+                status=$7,
+                price=$8
+                WHERE id=$1`
+                idToUpdate = order.ID
+        }</span>
+
+        <span class="cov8" title="1">_, queryErr = o.Conn.Exec(saveQuery,
+                idToUpdate,
+                order.Name,
+                order.Deadline,
+                order.ManagerLogin,
+                order.WorkerLogin,
+                order.CustomerLogin,
+                order.Status,
+                order.PriceTotal,
+        )
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, queryErr)
+        }</span>
+        <span class="cov8" title="1">if !isPresent </span><span class="cov8" title="1">{
+                o.CurrentID++
+                return o.CurrentID, nil
+        }</span>
+        <span class="cov8" title="1">return idToUpdate, nil</span>
+}
+
+// DeelteOrder служит для идемпотентного удаления заказа.
+// Если заказ существует - удалит его,
+// иначе не сделает ничего.
+//
+// Принимает ID заказа,
+// возвращает возможную ошибку.
+func (o *OrderRepository) DeleteOrder(id int) error <span class="cov8" title="1">{
+        query := `DELETE FROM orders
+        WHERE id = $1`
+
+        _, queryErr := o.Conn.Exec(query, id)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">if o.CurrentID == id </span><span class="cov8" title="1">{
+                o.CurrentID--
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package repository
+
+import (
+        "database/sql"
+        "fmt"
+        "os"
+
+        _ "github.com/jackc/pgx/v5/stdlib"
+)
+
+func Connect() (*sql.DB, error) <span class="cov8" title="1">{
+        connString := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", os.Getenv("DATABASE_USERNAME"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_PORT"), os.Getenv("DATABASE_SCEMA"))
+        db, openErr := sql.Open("pgx", connString)
+        if openErr != nil </span><span class="cov0" title="0">{
+                return nil, openErr
+        }</span>
+        <span class="cov8" title="1">return db, nil</span>
+}
+
+func Close(db *sql.DB) error <span class="cov0" title="0">{
+        return db.Close()
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package repository
+
+import (
+        "context"
+        "crud-go/internal/model"
+        "database/sql"
+        "fmt"
+)
+
+type ITaskRepository interface {
+        GetAllTasks() ([]model.Task, error)
+        GetTasksByContract(int) ([]model.Task, error)
+        GetTaskById(int) (model.Task, error)
+        SaveTask(model.Task) (int, error)
+        DeleteTask(int) error
+
+        Begin() (Tx, error)
+        BeginTx(context.Context, *sql.TxOptions) (Tx, error)
+}
+
+// TaskRepository предназначен для выполнения операций, требующих доступа к БД, хранящей список задач
+type TaskRepository struct {
+        Conn       *sql.DB
+        CurrerntID int
+}
+
+// NewTaskRepository создаёт новый репозиторий для доступа к функционалу задач.
+// Также проводит инициализацию таблиц "tasks".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
+func NewTaskRepository(db *sql.DB) (TaskRepository, error) <span class="cov8" title="1">{
+        query := `CREATE TABLE IF NOT EXISTS tasks(
+        id SERIAL PRIMARY KEY,
+        name TEXT,
+        contractID SERIAL,
+        itemID SERIAL,
+        amount SERIAL,
+        finished BOOL,
+        price SERIAL)`
+
+        _, migrationErr := db.Exec(query)
+        if migrationErr != nil </span><span class="cov0" title="0">{
+                return TaskRepository{},
+                        fmt.Errorf("Error creating table \"tasks\":\n %w", migrationErr)
+        }</span>
+        <span class="cov8" title="1">return TaskRepository{db, 0}, nil</span>
+}
+
+func (t TaskRepository) Begin() (Tx, error) <span class="cov0" title="0">{
+        return t.Conn.Begin()
+}</span>
+
+func (t TaskRepository) BeginTx(ctx context.Context, opts *sql.TxOptions) (Tx, error) <span class="cov0" title="0">{
+        return t.Conn.BeginTx(ctx, opts)
+}</span>
+
+// GetAllTasks служит для получения всех задач, хранящихся в базе данных.
+//
+// Не принимает значений,
+// возвращает список всех задач и возможную ошибку.
+func (t TaskRepository) GetAllTasks() ([]model.Task, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM tasks`
+        rows, queryErr := t.Conn.Query(query)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        tasks := make([]model.Task, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var task model.Task
+                scanErr := rows.Scan(&amp;task.ID, &amp;task.Name, &amp;task.OrderID, &amp;task.ItemID, &amp;task.Amount, &amp;task.Finished, &amp;task.Price)
+                if scanErr != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+                }</span>
+                <span class="cov8" title="1">tasks = append(tasks, task)</span>
+        }
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return tasks, nil</span>
+}
+
+// GetTasksByContract служит для получения всех задач, составляющих заказ.
+//
+// Принимает ID заказа, для которого нужно получить задачи,
+// возвращает список задач и возможную ошибку.
+func (t TaskRepository) GetTasksByContract(contractID int) ([]model.Task, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM tasks
+        WHERE contractID = $1`
+
+        rows, queryErr := t.Conn.Query(query, contractID)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        tasks := make([]model.Task, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var task model.Task
+                scanErr := rows.Scan(&amp;task.ID, &amp;task.Name, &amp;task.OrderID, &amp;task.ItemID, &amp;task.Amount, &amp;task.Finished, &amp;task.Price)
+                if scanErr != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+                }</span>
+                <span class="cov8" title="1">tasks = append(tasks, task)</span>
+        }
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+
+        <span class="cov8" title="1">return tasks, nil</span>
+}
+
+// GetTaskById служит для получения задачи по её ID.
+//
+// Принимает ID искомой задачи,
+// возвращает искомую задачу и возможную ошибку.
+func (t TaskRepository) GetTaskById(id int) (model.Task, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM tasks
+        WHERE id = $1`
+
+        var task model.Task
+        scanErr := t.Conn.QueryRow(query, id).Scan(&amp;task.ID, &amp;task.Name, &amp;task.OrderID, &amp;task.ItemID, &amp;task.Amount, &amp;task.Finished, &amp;task.Price)
+        if scanErr != nil </span><span class="cov8" title="1">{
+                if scanErr == sql.ErrNoRows </span><span class="cov8" title="1">{
+                        return model.Task{}, nil
+                }</span>
+                <span class="cov0" title="0">return model.Task{},
+                        fmt.Errorf("Error scanning values from rows:\n %w", scanErr)</span>
+        }
+        <span class="cov8" title="1">return task, nil</span>
+}
+
+// SaveTask служит для идемпотентного сохранения задачи.
+// В случае, если сохраняемая задача существует в БД, обновляет её,
+// иначе создаёт новую задачу.
+//
+// Принимает задачу, которую нужно сохранить,
+// возвращает возможную ошибку.
+func (t *TaskRepository) SaveTask(task model.Task) (int, error) <span class="cov8" title="1">{
+        selectQuery := `SELECT *
+        FROM tasks
+        where id = $1`
+
+        rows, queryErr := t.Conn.Query(selectQuery, task.ID)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", selectQuery, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        isPresent := rows.Next()
+
+        var saveQuery string
+        var idToUpdate int
+        if !isPresent </span><span class="cov8" title="1">{
+                saveQuery = `INSERT INTO tasks
+                VALUES ($1, $2, $3, $4, $5, $6, $7)`
+                idToUpdate = t.CurrerntID + 1
+        }</span> else<span class="cov8" title="1"> {
+                saveQuery = `UPDATE tasks
+                SET name = $2,
+                contractID = $3,
+                itemID = $4,
+                amount = $5,
+                finished = $6,
+                price = $7
+                WHERE id = $1`
+                idToUpdate = task.ID
+        }</span>
+        <span class="cov8" title="1">_, queryErr = t.Conn.Exec(saveQuery,
+                idToUpdate,
+                task.Name,
+                task.OrderID,
+                task.ItemID,
+                task.Amount,
+                task.Finished,
+                task.Price)
+
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", saveQuery, queryErr)
+        }</span>
+        <span class="cov8" title="1">if !isPresent </span><span class="cov8" title="1">{
+                t.CurrerntID++
+        }</span>
+
+        <span class="cov8" title="1">return idToUpdate, nil</span>
+}
+
+// DeelteTask служит для идемпотентного удаления задачи.
+// Если задача существует - удалит её,
+// иначе не сделает ничего.
+//
+// Принимает ID задачи,
+// возвращает возможную ошибку.
+func (t *TaskRepository) DeleteTask(id int) error <span class="cov8" title="1">{
+        query := `DELETE FROM tasks
+        WHERE id = $1`
+
+        _, queryErr := t.Conn.Exec(query, id)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"tasks\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">if t.CurrerntID == id </span><span class="cov0" title="0">{
+                t.CurrerntID--
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package repository
+
+import (
+        "crud-go/internal/model"
+        "database/sql"
+        "time"
+)
+
+type ITokenRepository interface {
+        Save(string, string, string, time.Time) error
+        GetTokenByLogin(string) (model.RefreshToken, error)
+        Revoke(string) error
+}
+
+type TokenRepository struct {
+        Conn *sql.DB
+}
+
+func NewTokenRepository(db *sql.DB) (TokenRepository, error) <span class="cov8" title="1">{
+        query := `CREATE TABLE IF NOT EXISTS tokens (
+        token_id UUID PRIMARY KEY,
+    login TEXT,
+    token_hash TEXT,
+    expires_at TIMESTAMP,
+    revoked BOOLEAN DEFAULT false
+        )`
+
+        _, createErr := db.Exec(query)
+        if createErr != nil </span><span class="cov0" title="0">{
+                return TokenRepository{}, createErr
+        }</span>
+
+        <span class="cov8" title="1">return TokenRepository{Conn: db}, nil</span>
+}
+
+func (tr TokenRepository) Save(tokenID, login, tokenHash string, expiresAt time.Time) error <span class="cov8" title="1">{
+        query := `INSERT INTO tokens (token_id, login, token_hash, expires_at)
+        VALUES ($1, $2, $3, $4)`
+
+        _, queryErr := tr.Conn.Exec(query, tokenID, login, tokenHash, expiresAt)
+        return queryErr
+}</span>
+
+func (tr TokenRepository) GetTokenByLogin(login string) (model.RefreshToken, error) <span class="cov8" title="1">{
+        query := `SELECT * 
+        FROM tokens
+        WHERE login=$1 
+        AND revoked = false
+        ORDER BY expires_at DESC
+        LIMIT 1`
+
+        var token model.RefreshToken
+
+        rowErr := tr.Conn.QueryRow(query, login).Scan(&amp;token.TokenID, &amp;token.Login, &amp;token.TokenHash, &amp;token.ExpiresAt, &amp;token.Revoked)
+        if rowErr != nil </span><span class="cov8" title="1">{
+                if rowErr == sql.ErrNoRows </span><span class="cov8" title="1">{
+                        return model.RefreshToken{}, nil
+                }</span> else<span class="cov0" title="0"> {
+                        return model.RefreshToken{}, rowErr
+                }</span>
+        }
+
+        <span class="cov8" title="1">if token.Revoked </span><span class="cov0" title="0">{
+                return model.RefreshToken{}, nil
+        }</span>
+
+        <span class="cov8" title="1">return token, nil</span>
+}
+
+func (tr TokenRepository) Revoke(login string) error <span class="cov8" title="1">{
+        query := `UPDATE tokens
+        SET revoked = true
+        WHERE login = $1`
+
+        _, updateErr := tr.Conn.Exec(query, login)
+        return updateErr
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package repository
+
+import (
+        "crud-go/internal/model"
+        "database/sql"
+        "fmt"
+)
+
+type IUserRepository interface {
+        GetWorkersByManager(string) ([]model.Worker, error)
+        GetRoleByLogin(string) (int, string, error)
+        SaveCustomer(model.Customer) error
+}
+
+// UserRepository предназначен для выполнения операций, требующих доступа к БД, хранящих.
+type UserRepository struct {
+        Conn *sql.DB
+}
+
+// NewUserRepository создаёт новый репозиторий для доступа к функционалу пользователей.
+// Также проводит инициализацию таблиц "managers", "workers" и "customers".
+//
+// Принимает указатель на подключение к базе данных,
+// возвращает новый экземпляр репозитория и возможную ошибку.
+func NewUserRepository(db *sql.DB) (UserRepository, error) <span class="cov8" title="1">{
+        managerQuery := `CREATE TABLE IF NOT EXISTS managers(
+        login TEXT PRIMARY KEY,
+        password TEXT,
+        fio TEXT
+        )`
+        workerQuery := `CREATE TABLE IF NOT EXISTS workers (
+        login TEXT PRIMARY KEY,
+        password TEXT,
+        fio TEXT,
+        superiorLogin TEXT
+        )`
+        customerQuery := `CREATE TABLE IF NOT EXISTS customers (
+        login TEXT PRIMARY KEY,
+        password TEXT,
+        fio TEXT,
+        number TEXT,
+        email TEXT
+        )`
+
+        _, managerErr := db.Exec(managerQuery)
+        if managerErr != nil </span><span class="cov0" title="0">{
+                return UserRepository{},
+                        fmt.Errorf("Error creating table \"managers\":\n %w", managerErr)
+        }</span>
+
+        <span class="cov8" title="1">_, workerErr := db.Exec(workerQuery)
+        if workerErr != nil </span><span class="cov0" title="0">{
+                return UserRepository{},
+                        fmt.Errorf("Error creating table \"managers\":\n %w", workerErr)
+        }</span>
+
+        <span class="cov8" title="1">_, customerErr := db.Exec(customerQuery)
+        if customerErr != nil </span><span class="cov0" title="0">{
+                return UserRepository{},
+                        fmt.Errorf("Error creating table \"managers\":\n %w", customerErr)
+        }</span>
+
+        <span class="cov8" title="1">return UserRepository{db}, nil</span>
+}
+
+// GetWorkersByManager служит для получения всех рабочих, назначенных определённому менеджеру.
+//
+// Принимает логин менеджера, для которого нужно получить работников,
+// возвращает список работников и возможную ошибку.
+func (u UserRepository) GetWorkersByManager(managerLogin string) ([]model.Worker, error) <span class="cov8" title="1">{
+        query := `SELECT *
+        FROM workers
+        WHERE superiorLogin = $1`
+        rows, queryErr := u.Conn.Query(query, managerLogin)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error executing query \"%s\" to table \"workers\":\n %w", query, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        var workers = make([]model.Worker, 0)
+        for rows.Next() </span><span class="cov8" title="1">{
+                var worker model.Worker
+                scanErr := rows.Scan(&amp;worker.Login, &amp;worker.Password, &amp;worker.Fio, &amp;worker.SuperiorLogin)
+                if scanErr != nil </span><span class="cov0" title="0">{
+                        return nil,
+                                fmt.Errorf("Error scanning values from rows:\n %w", scanErr)
+                }</span>
+                <span class="cov8" title="1">workers = append(workers, worker)</span>
+        }
+
+        <span class="cov8" title="1">if iterErr := rows.Err(); iterErr != nil </span><span class="cov0" title="0">{
+                return nil,
+                        fmt.Errorf("Error processing rows: \n %w", iterErr)
+        }</span>
+        <span class="cov8" title="1">return workers, nil</span>
+}
+
+// GetRoleByLogin служит для получения информации о пользователе (его роль и пароль) по его логину.
+//
+// Принимает логин пользователя, по которому нужно получить информацию,
+// возвращает роль пользователя, его пароль и возможную ошибку.
+func (u UserRepository) GetRoleByLogin(login string) (int, string, error) <span class="cov8" title="1">{
+        managerQuery := `SELECT password FROM managers WHERE login = $1`
+        workerQuery := `SELECT password FROM workers WHERE login = $1`
+        customerQuery := `SELECT password FROM customers WHERE login = $1`
+
+        managerRows, managerErr := u.Conn.Query(managerQuery, login)
+        if managerErr != nil </span><span class="cov0" title="0">{
+                return 0, "",
+                        fmt.Errorf("Error executing query \"%s\" to table \"managers\":\n %w", managerQuery, managerErr)
+        }</span>
+        <span class="cov8" title="1">defer managerRows.Close()
+
+        workerRows, workerErr := u.Conn.Query(workerQuery, login)
+        if workerErr != nil </span><span class="cov0" title="0">{
+                return 0, "",
+                        fmt.Errorf("Error executing query \"%s\" to table \"workers\":\n %w", workerQuery, workerErr)
+        }</span>
+        <span class="cov8" title="1">defer workerRows.Close()
+
+        customerRows, customerErr := u.Conn.Query(customerQuery, login)
+        if customerErr != nil </span><span class="cov0" title="0">{
+                return 0, "",
+                        fmt.Errorf("Error executing query \"%s\" to table \"customers\":\n %w", customerQuery, customerErr)
+        }</span>
+        <span class="cov8" title="1">defer customerRows.Close()
+
+        role := 0
+        password := ""
+
+        if manRowsErr := managerRows.Err(); managerRows.Next() &amp;&amp; manRowsErr == nil </span><span class="cov0" title="0">{
+                role = 3
+                managerRows.Scan(&amp;password)
+        }</span> else<span class="cov8" title="1"> if worRowsErr := workerRows.Err(); workerRows.Next() &amp;&amp; worRowsErr == nil </span><span class="cov0" title="0">{
+                role = 2
+                workerRows.Scan(&amp;password)
+        }</span> else<span class="cov8" title="1"> if cusRowsErr := customerRows.Err(); customerRows.Next() &amp;&amp; cusRowsErr == nil </span><span class="cov8" title="1">{
+                role = 1
+                customerRows.Scan(&amp;password)
+        }</span> else<span class="cov0" title="0"> if manRowsErr != nil || worRowsErr != nil || cusRowsErr != nil </span><span class="cov0" title="0">{
+                return 0, "",
+                        fmt.Errorf("Error processing rows: \n")
+        }</span>
+
+        <span class="cov8" title="1">return role, password, nil</span>
+}
+
+// SaveCustomer служит для идемпотентного сохранения покупателя.
+// В случае, если сохраняемый покупатель существует в БД, обновляет его,
+// иначе создаёт нового покупателя.
+//
+// Принимает покупателя, которого нужно сохранить,
+// возвращает возможную ошибку.
+func (u UserRepository) SaveCustomer(customer model.Customer) error <span class="cov8" title="1">{
+        selectQuery := `SELECT login 
+        FROM customers
+        WHERE login = $1`
+
+        rows, queryErr := u.Conn.Query(selectQuery, customer.Login)
+        if queryErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", selectQuery, queryErr)
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        isPresent := rows.Next()
+
+        var saveQuery string
+        if !isPresent </span><span class="cov8" title="1">{
+                saveQuery = `INSERT INTO customers
+                VALUES ($1, $2, $3, $4, $5)`
+        }</span> else<span class="cov8" title="1"> {
+                saveQuery = `UPDATE customers
+                SET password = $2,
+                fio = $3,
+                number = $4,
+                email = $5
+                WHERE login = $1`
+        }</span>
+
+        <span class="cov8" title="1">_, saveErr := u.Conn.Exec(saveQuery,
+                customer.Login,
+                customer.Password,
+                customer.Fio,
+                customer.Number,
+                customer.Email)
+
+        if saveErr != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Error executing query \"%s\" to table \"orders\":\n %w", saveQuery, saveErr)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

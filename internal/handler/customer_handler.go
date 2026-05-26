@@ -88,7 +88,7 @@ func (ch CustomerHandler) GetCustomerOrder(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
 		return
 	}
-	order, serviceErr := ch.CustomerService.GetOrderByID(login, role, id)
+	order, serviceErr := ch.CustomerService.GetOrderById(login, role, id)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving order: " + serviceErr.Error()})
 		return
@@ -114,7 +114,7 @@ func (ch CustomerHandler) CreateOrder(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
-	createdOrderId, serviceErr := ch.CustomerService.CreateOrder(login, role, orderDTO)
+	createdOrderId, serviceErr := ch.CustomerService.CreateOrder(login, role, orderDTO.Deadline)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error creating order: " + serviceErr.Error()})
 		return
@@ -145,7 +145,7 @@ func (ch CustomerHandler) DeleteOrder(ctx *gin.Context) {
 	}
 
 	//Удаляем заказ через сервис, используя логин, роль и ID заказа
-	serviceErr := ch.CustomerService.DeleteOrder(login, role, id)
+	_, serviceErr := ch.CustomerService.DeleteOrder(login, role, id)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error deleting order: " + serviceErr.Error()})
 		return

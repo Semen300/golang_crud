@@ -56,7 +56,7 @@ func (m *itemRepoMock) GetAllItems() ([]model.Item, error) {
 	return args.Get(0).([]model.Item), args.Error(1)
 }
 
-func (m *itemRepoMock) GetItemByID(id int) (model.Item, error) {
+func (m *itemRepoMock) GetItemById(id int) (model.Item, error) {
 	args := m.Called(id)
 	return args.Get(0).(model.Item), args.Error(1)
 }

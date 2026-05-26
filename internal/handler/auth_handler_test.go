@@ -27,9 +27,9 @@ func (m *mockAuthService) RegisterNewCustomer(login, password, fio, number, emai
 	return args.Error(0)
 }
 
-func (m *mockAuthService) Login(login, password string) (int, string, string, error) {
+func (m *mockAuthService) Login(login, password string) (model.Claims, string, string, error) {
 	args := m.Called(login, password)
-	return args.Int(0), args.String(1), args.String(2), args.Error(3)
+	return args.Get(0).(model.Claims), args.String(1), args.String(2), args.Error(3)
 }
 
 func (m *mockAuthService) Refresh(refreshToken string) (string, error) {
@@ -145,8 +145,9 @@ func TestRegister500(t *testing.T) {
 func TestLogin200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	claims := model.Claims{Login: "user1", Role: 1}
 	mockService := new(mockAuthService)
-	mockService.On("Login", "testlogin", "testpass").Return(1, "access_token", "refresh_token", nil)
+	mockService.On("Login", "testlogin", "testpass").Return(claims, "access_token", "refresh_token", nil)
 
 	credentials := map[string]string{
 		"login":    "testlogin",
@@ -163,12 +164,14 @@ func TestLogin200(t *testing.T) {
 	testHandler.Login(testCtx)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var response map[string]interface{}
+	var response map[string]any
+	var claimsMap map[string]any
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-	assert.Equal(t, float64(1), response["role"])
+	claimsMap = response["claims"].(map[string]any)
+	assert.Equal(t, claims.Login, claimsMap["login"])
+	assert.Equal(t, float64(claims.Role), claimsMap["role"])
 	assert.Equal(t, "access_token", response["accessToken"])
 	assert.Equal(t, "refresh_token", response["refreshToken"])
-	assert.Equal(t, float64(900), response["expiresIn"])
 	mockService.AssertExpectations(t)
 }
 
@@ -196,7 +199,7 @@ func TestLogin401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockAuthService)
-	mockService.On("Login", "testlogin", "testpass").Return(0, "", "", errors.New("invalid credentials"))
+	mockService.On("Login", "testlogin", "testpass").Return(model.Claims{}, "", "", errors.New("invalid credentials"))
 
 	credentials := map[string]string{
 		"login":    "testlogin",
@@ -223,7 +226,7 @@ func TestRefreshToken200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockAuthService)
-	mockService.On("RefreshToken", "refresh_token").Return("new_access_token", nil)
+	mockService.On("Refresh", "refresh_token").Return("new_access_token", nil)
 
 	request := map[string]string{
 		"refreshToken": "refresh_token",
@@ -242,7 +245,6 @@ func TestRefreshToken200(t *testing.T) {
 	var response map[string]interface{}
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	assert.Equal(t, "new_access_token", response["accessToken"])
-	assert.Equal(t, float64(900), response["expiresIn"])
 	mockService.AssertExpectations(t)
 }
 
@@ -270,7 +272,7 @@ func TestRefreshToken401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockAuthService)
-	mockService.On("RefreshToken", "refresh_token").Return("", errors.New("invalid token"))
+	mockService.On("Refresh", "refresh_token").Return("", errors.New("invalid token"))
 
 	request := map[string]string{
 		"refreshToken": "refresh_token",
@@ -296,10 +298,10 @@ func TestLogout200(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockAuthService)
-	mockService.On("Logout", "refresh_token").Return(nil)
+	mockService.On("Logout", "login").Return(nil)
 
 	request := map[string]string{
-		"refreshToken": "refresh_token",
+		"login": "login",
 	}
 	body, _ := json.Marshal(request)
 	req := httptest.NewRequest(http.MethodPost, authPrefix+"/logout", bytes.NewBuffer(body))
@@ -342,10 +344,10 @@ func TestLogout500(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockService := new(mockAuthService)
-	mockService.On("Logout", "refresh_token").Return(errors.New("logout failed"))
+	mockService.On("Logout", "login").Return(errors.New("logout failed"))
 
 	request := map[string]string{
-		"refreshToken": "refresh_token",
+		"login": "login",
 	}
 	body, _ := json.Marshal(request)
 	req := httptest.NewRequest(http.MethodPost, authPrefix+"/logout", bytes.NewBuffer(body))

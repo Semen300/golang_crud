@@ -102,7 +102,7 @@ func TestGetOrderByManager200(t *testing.T) {
 	mockService.On("GetOrderById", "manager1", 3, 1).Return(mockOrder, nil)
 
 	r := gin.New()
-	r.GET(managerPrefix+"/orders/:orderId", func(ctx *gin.Context) {
+	r.GET(managerPrefix+"/orders/:id", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
 		handler.NewManagerHandler(mockService).GetOrderByID(ctx)
@@ -124,7 +124,7 @@ func TestGetOrderByManagerBadRequest(t *testing.T) {
 	mockService := new(mockManagerService)
 
 	r := gin.New()
-	r.GET(managerPrefix+"/orders/:orderId", func(ctx *gin.Context) {
+	r.GET(managerPrefix+"/orders/:id", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
 		handler.NewManagerHandler(mockService).GetOrderByID(ctx)
@@ -144,7 +144,7 @@ func TestAssignWorkerToOrder200(t *testing.T) {
 	mockService.On("AssignWorkerToOrder", "manager1", 3, 1, "newworker").Return(nil)
 
 	r := gin.New()
-	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
+	r.PUT(managerPrefix+"/orders/:id", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
 		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
@@ -152,7 +152,7 @@ func TestAssignWorkerToOrder200(t *testing.T) {
 
 	requestBody := map[string]string{"workerLogin": "newworker"}
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/1/worker", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/1", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -167,7 +167,7 @@ func TestSetAssignWorkerToOrderBadRequestInvalidID(t *testing.T) {
 	mockService := new(mockManagerService)
 
 	r := gin.New()
-	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
+	r.PUT(managerPrefix+"/orders/:id", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 3)
 		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
@@ -175,7 +175,7 @@ func TestSetAssignWorkerToOrderBadRequestInvalidID(t *testing.T) {
 
 	requestBody := map[string]string{"workerLogin": "newworker"}
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/abc/worker", bytes.NewBuffer(body))
+	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/abc", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -189,13 +189,13 @@ func TestAssignWorkerToOrderBadRequestInvalidBody(t *testing.T) {
 	mockService := new(mockManagerService)
 
 	r := gin.New()
-	r.PUT(managerPrefix+"/orders/:orderId/worker", func(ctx *gin.Context) {
+	r.PUT(managerPrefix+"/orders/:id", func(ctx *gin.Context) {
 		ctx.Set("login", "manager1")
 		ctx.Set("role", 1)
 		handler.NewManagerHandler(mockService).AssignWorkerToOrder(ctx)
 	})
 
-	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/1/worker", bytes.NewBuffer([]byte("invalid json")))
+	req := httptest.NewRequest(http.MethodPut, managerPrefix+"/orders/1", bytes.NewBuffer([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

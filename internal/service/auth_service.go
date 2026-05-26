@@ -12,7 +12,7 @@ import (
 
 type IAuthService interface {
 	RegisterNewCustomer(string, string, string, string, string) error
-	Login(string, string) (int, string, string, error)
+	Login(string, string) (model.Claims, string, string, error)
 	Refresh(string) (string, error)
 	Logout(string) error
 	GenerateAccessToken(model.Claims) (string, error)
