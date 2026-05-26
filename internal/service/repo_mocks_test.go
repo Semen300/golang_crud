@@ -5,10 +5,12 @@ import (
 	"crud-go/internal/model"
 	"crud-go/internal/repository"
 	"database/sql"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 )
 
+// BasketRepoMock
 type basketRepoMock struct {
 	mock.Mock
 	tx *MockTx
@@ -44,6 +46,7 @@ func (m *basketRepoMock) BeginTx(ctx context.Context, opts *sql.TxOptions) (repo
 	return m.tx, nil
 }
 
+// ItemRepoMock
 type itemRepoMock struct {
 	mock.Mock
 }
@@ -58,6 +61,7 @@ func (m *itemRepoMock) GetItemByID(id int) (model.Item, error) {
 	return args.Get(0).(model.Item), args.Error(1)
 }
 
+// OrderRepoMock
 type orderRepoMock struct {
 	mock.Mock
 }
@@ -97,6 +101,7 @@ func (m *orderRepoMock) DeleteOrder(id int) error {
 	return args.Error(0)
 }
 
+// TaskRepoMock
 type taskRepoMock struct {
 	mock.Mock
 	tx *MockTx
@@ -137,6 +142,7 @@ func (m *taskRepoMock) BeginTx(ctx context.Context, opts *sql.TxOptions) (reposi
 	return m.tx, nil
 }
 
+// UserRepoMock
 type userRepoMock struct {
 	mock.Mock
 }
@@ -156,6 +162,27 @@ func (m *userRepoMock) SaveCustomer(customer model.Customer) error {
 	return args.Error(0)
 }
 
+// TokenRepoMock
+type tokenRepoMock struct {
+	mock.Mock
+}
+
+func (m *tokenRepoMock) Save(tokenID, login, tokenHash string, expiresAt time.Time) error {
+	args := m.Called(tokenID, login, tokenHash, expiresAt)
+	return args.Error(0)
+}
+
+func (m *tokenRepoMock) GetTokenByLogin(login string) (model.RefreshToken, error) {
+	args := m.Called(login)
+	return args.Get(0).(model.RefreshToken), args.Error(1)
+}
+
+func (m *tokenRepoMock) Revoke(login string) error {
+	args := m.Called(login)
+	return args.Error(0)
+}
+
+// Transaction Mock
 type MockTx struct {
 	CommitCalled bool
 }

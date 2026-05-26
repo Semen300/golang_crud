@@ -59,7 +59,7 @@ func (ah *AuthHandler) Login(ctx *gin.Context) {
 		"role":         role,
 		"accessToken":  accessToken,
 		"refreshToken": RefreshToken,
-		"expiresIn":    900})
+	})
 }
 
 // RefreshToken служит для обновления токена доступа с помощью токена обновления.
@@ -75,14 +75,14 @@ func (ah *AuthHandler) RefreshToken(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	accessToken, serviceErr := ah.authService.RefreshToken(request.RefreshToken)
+	accessToken, serviceErr := ah.authService.Refresh(request.RefreshToken)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token: " + serviceErr.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{
 		"accessToken": accessToken,
-		"expiresIn":   900})
+	})
 }
 
 // Logout служит для выхода пользователя из системы.

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func (m *mockAuthService) Login(login, password string) (int, string, string, er
 	return args.Int(0), args.String(1), args.String(2), args.Error(3)
 }
 
-func (m *mockAuthService) RefreshToken(refreshToken string) (string, error) {
+func (m *mockAuthService) Refresh(refreshToken string) (string, error) {
 	args := m.Called(refreshToken)
 	return args.String(0), args.Error(1)
 }
@@ -39,6 +40,26 @@ func (m *mockAuthService) RefreshToken(refreshToken string) (string, error) {
 func (m *mockAuthService) Logout(refreshToken string) error {
 	args := m.Called(refreshToken)
 	return args.Error(0)
+}
+
+func (m *mockAuthService) GenerateAccessToken(claims model.Claims) (string, error) {
+	args := m.Called(claims)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockAuthService) GenerateRefreshToken(claims model.Claims) (string, string, time.Time, error) {
+	args := m.Called(claims)
+	return args.String(0), args.String(1), args.Get(2).(time.Time), args.Error(3)
+}
+
+func (m *mockAuthService) ParseAccessToken(accessToken string) (model.Claims, error) {
+	args := m.Called(accessToken)
+	return args.Get(0).(model.Claims), args.Error(1)
+}
+
+func (m *mockAuthService) ParseRefreshToken(refreshToken string) (model.Claims, error) {
+	args := m.Called(refreshToken)
+	return args.Get(0).(model.Claims), args.Error(1)
 }
 
 func TestRegister200(t *testing.T) {

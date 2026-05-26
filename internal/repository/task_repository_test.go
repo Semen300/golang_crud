@@ -36,7 +36,7 @@ func migrateTasks(db *sql.DB) {
 		2, "task2", 2, 2, 2, true, 200,
 		3, "task3", 3, 3, 3, true, 300)
 	if insertErr != nil {
-		log.Fatal(fmt.Errorf("Error executing migration into table 'tasks': \nError adding values: \n%w", createErr))
+		log.Fatal(fmt.Errorf("Error executing migration into table 'tasks': \nError adding values: \n%w", insertErr))
 	}
 }
 
