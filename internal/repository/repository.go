@@ -9,7 +9,7 @@ import (
 )
 
 func Connect() (*sql.DB, error) {
-	connString := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", os.Getenv("DATABASE_USERNAME"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_PORT"), os.Getenv("DATABASE_SCEMA"))
+	connString := fmt.Sprintf("postgres://%s:%s@localhost:%s/%s", os.Getenv("DATABASE_USERNAME"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_PORT"), os.Getenv("DATABASE_SCHEMA"))
 	db, openErr := sql.Open("pgx", connString)
 	if openErr != nil {
 		return nil, openErr
