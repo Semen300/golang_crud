@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"crud-go/internal/handler"
 	"crud-go/internal/middleware"
 	"crud-go/internal/repository"
 	"crud-go/internal/service"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -74,6 +79,10 @@ func main() {
 	managerGroup := router.Group("api/v1/manager")
 	authGroup := router.Group("api/v1/auth")
 
+	customerGroup.Use(authMiddleware.AuthMiddlewareFunc)
+	workerGroup.Use(authMiddleware.AuthMiddlewareFunc)
+	managerGroup.Use(authMiddleware.AuthMiddlewareFunc)
+
 	customerGroup.GET("/orders", customerHandler.GetAllOrders)
 	customerGroup.GET("/orders/:id", customerHandler.GetCustomerOrder)
 	customerGroup.POST("/orders", customerHandler.CreateOrder)
@@ -97,9 +106,31 @@ func main() {
 	authGroup.POST("/refresh", authHandler.RefreshToken)
 	authGroup.POST("/logout", authHandler.Logout)
 
-	customerGroup.Use(authMiddleware.AuthMiddlewareFunc)
-	workerGroup.Use(authMiddleware.AuthMiddlewareFunc)
-	managerGroup.Use(authMiddleware.AuthMiddlewareFunc)
+	server := &http.Server{
+		Addr:    ":" + os.Getenv("APP_PORT"),
+		Handler: router,
+	}
 
-	router.Run(":" + os.Getenv("APP_PORT"))
+	go func() {
+		log.Println("Server successfully started at port " + server.Addr)
+		if err := server.ListenAndServe(); err != nil &&
+			err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	log.Println("Shuting down server...")
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+
+	server.Shutdown(ctx)
+	log.Println("Server successfully shot down")
+
 }

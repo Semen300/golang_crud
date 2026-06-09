@@ -31,8 +31,8 @@ func NewCustomerHandler(customerService service.ICustomerService) CustomerHandle
 func getUserInfo(ctx *gin.Context) (string, int) {
 
 	//Извлекаем логин и роль из контекста
-	login, loginExists := ctx.Get("login")
-	role, roleExists := ctx.Get("role")
+	login, loginExists := ctx.Params.Get("login")
+	role, roleExists := ctx.Params.Get("role")
 
 	if !loginExists || !roleExists {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -40,14 +40,8 @@ func getUserInfo(ctx *gin.Context) (string, int) {
 	}
 
 	// Удостоверяем тип логина и роли
-	loginStr, loginOk := login.(string)
-	roleInt, roleOk := role.(int)
-	if !loginOk || !roleOk {
-		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error parsing auth data"})
-		return "", 0
-	}
-
-	return loginStr, roleInt
+	roleInt, _ := strconv.Atoi(role)
+	return login, roleInt
 }
 
 // GetAllOrders предназначена для получения всех заказов клиента.

@@ -89,7 +89,9 @@ func (as AuthService) Login(login, password string) (model.Claims, string, strin
 		return model.Claims{}, "", "", revokeErr
 	}
 
-	saveErr := tr.Save(rTokenId, login, refreshToken, expirationTime)
+	hashedToken := CreateHash(refreshToken)
+
+	saveErr := tr.Save(rTokenId, login, hashedToken, expirationTime)
 	if saveErr != nil {
 		return model.Claims{}, "", "", saveErr
 	}
@@ -114,7 +116,7 @@ func (as AuthService) Refresh(refreshTokenStr string) (string, error) {
 		return "", getErr
 	}
 
-	if refreshToken.Revoked || refreshToken.ExpiresAt.Before(time.Now()) {
+	if refreshToken.Revoked || refreshToken.ExpiresAt.Before(time.Now()) || CreateHash(refreshTokenStr) != refreshToken.TokenHash {
 		return "", fmt.Errorf("Error: refresh token invalid\n")
 	}
 
@@ -127,7 +129,7 @@ func (as AuthService) Logout(login string) error {
 }
 
 func (as AuthService) GenerateAccessToken(claims model.Claims) (string, error) {
-	expirationTime := time.Now().Add(time.Duration(as.accessLifetime))
+	expirationTime := time.Now().Add(time.Duration(as.accessLifetime) * time.Second)
 	claims.ExpiresAt = jwt.NewNumericDate(expirationTime)
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -135,7 +137,7 @@ func (as AuthService) GenerateAccessToken(claims model.Claims) (string, error) {
 }
 
 func (as AuthService) GenerateRefreshToken(claims model.Claims) (string, string, time.Time, error) {
-	expirationTime := time.Now().Add(time.Duration(as.refreshLifetime))
+	expirationTime := time.Now().Add(time.Duration(as.refreshLifetime) * time.Second)
 	claims.ExpiresAt = jwt.NewNumericDate(expirationTime)
 
 	tokenID := uuid.NewString()
@@ -154,14 +156,14 @@ func (as AuthService) ParseAccessToken(tokenStr string) (model.Claims, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, jwt.ErrTokenSignatureInvalid
 			}
-			return as.accessKey, nil
+			return []byte(as.accessKey), nil
 		},
 	)
 	if parseErr != nil {
 		return model.Claims{}, parseErr
 	}
 
-	claims, ok := token.Claims.(model.Claims)
+	claims, ok := token.Claims.(*model.Claims)
 	if !ok {
 		return model.Claims{}, jwt.ErrTokenInvalidClaims
 	}
@@ -170,7 +172,7 @@ func (as AuthService) ParseAccessToken(tokenStr string) (model.Claims, error) {
 		return model.Claims{}, jwt.ErrTokenMalformed
 	}
 
-	return claims, nil
+	return *claims, nil
 }
 
 func (as AuthService) ParseRefreshToken(tokenStr string) (model.Claims, error) {
@@ -181,14 +183,14 @@ func (as AuthService) ParseRefreshToken(tokenStr string) (model.Claims, error) {
 			if t.Method != jwt.SigningMethodHS256 {
 				return nil, jwt.ErrTokenSignatureInvalid
 			}
-			return as.refreshKey, nil
+			return []byte(as.refreshKey), nil
 		})
 
 	if parseErr != nil {
 		return model.Claims{}, parseErr
 	}
 
-	claims, ok := token.Claims.(model.Claims)
+	claims, ok := token.Claims.(*model.Claims)
 	if !ok {
 		return model.Claims{}, jwt.ErrTokenInvalidClaims
 	}
@@ -197,5 +199,5 @@ func (as AuthService) ParseRefreshToken(tokenStr string) (model.Claims, error) {
 		return model.Claims{}, jwt.ErrTokenMalformed
 	}
 
-	return claims, nil
+	return *claims, nil
 }

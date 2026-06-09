@@ -4,6 +4,7 @@ import (
 	"crud-go/internal/service"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,9 +20,14 @@ func NewAuthMiddleware(as service.IAuthService) AuthMiddleware {
 
 func (am AuthMiddleware) AuthMiddlewareFunc(ctx *gin.Context) {
 	as := *am.AuthService
-	token := ctx.GetHeader("Authorisation")
-	if token == "" {
+	authHeader := ctx.GetHeader("Authorization")
+	token, hasPrefix := strings.CutPrefix(authHeader, "Bearer ")
+	if !hasPrefix {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "'Bearer' prefix required at 'Authorization' feild"})
+	}
+	if authHeader == "" {
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: access token required"})
+		return
 	}
 
 	claims, accessTokenErr := as.ParseAccessToken(token)
@@ -29,8 +35,10 @@ func (am AuthMiddleware) AuthMiddlewareFunc(ctx *gin.Context) {
 	if accessTokenErr != nil {
 		if accessTokenErr == jwt.ErrTokenExpired {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: access token expired"})
+			return
 		} else {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": accessTokenErr.Error()})
+			return
 		}
 	}
 
