@@ -25,6 +25,7 @@ func (wh *WorkerHandler) GetOrdersByWorker(ctx *gin.Context) {
 	//Извлекаем логин и роль рабочего из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем заказы рабочего через сервис по логину и роли
@@ -46,6 +47,7 @@ func (wh WorkerHandler) GetOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль рабочего из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	// Получаем ID заказа из параметров URL и преобразуем его в целое число
@@ -75,6 +77,7 @@ func (wh WorkerHandler) SetTaskCompleted(ctx *gin.Context) {
 	//Извлекаем логин и роль рабочего из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	// Получаем ID задачи из параметров URL и преобразуем его в целое число

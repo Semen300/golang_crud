@@ -44,7 +44,22 @@ func NewTaskRepository(db *sql.DB) (TaskRepository, error) {
 		return TaskRepository{},
 			fmt.Errorf("Error creating table \"tasks\":\n %w", migrationErr)
 	}
-	return TaskRepository{db, 0}, nil
+
+	idQuery := `SELECT id
+	FROM tasks
+	ORDER BY id DESC
+	LIMIT 1`
+
+	var currentID int
+	queryErr := db.QueryRow(idQuery).Scan(&currentID)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return TaskRepository{db, 0}, nil
+		}
+		return TaskRepository{},
+			fmt.Errorf("Error getting last ID from table \"tasks\":\n %w", queryErr)
+	}
+	return TaskRepository{db, currentID}, nil
 }
 
 func (t TaskRepository) Begin() (Tx, error) {

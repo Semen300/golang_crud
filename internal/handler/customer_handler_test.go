@@ -31,8 +31,8 @@ func (m *mockCustomerService) GetOrderById(login string, role int, id int) (mode
 	return args.Get(0).(model.Order), args.Error(1)
 }
 
-func (m *mockCustomerService) CreateOrder(login string, role int, deadline time.Time) (int, error) {
-	args := m.Called(login, role, deadline)
+func (m *mockCustomerService) CreateOrder(login string, role int, orderDTO model.OrderCreationDTO) (int, error) {
+	args := m.Called(login, role, orderDTO)
 	return args.Int(0), args.Error(1)
 }
 
@@ -242,7 +242,7 @@ func TestCreateOrder(t *testing.T) {
 			{ItemID: 1, Amount: 2},
 			{ItemID: 2, Amount: 1},
 		}}
-	mockService.On("CreateOrder", "customer1", 1, orderDTO.Deadline).Return(1, nil)
+	mockService.On("CreateOrder", "customer1", 1, orderDTO).Return(1, nil)
 
 	r := gin.New()
 	r.POST(customerPrefix+"/orders", func(ctx *gin.Context) {

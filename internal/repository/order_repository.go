@@ -45,7 +45,24 @@ func NewOrderRepository(db *sql.DB) (OrderRepository, error) {
 		return OrderRepository{},
 			fmt.Errorf("Error creating table \"orders\":\n %w", migrationErr)
 	}
-	return OrderRepository{db, 0}, nil
+
+	idQuery := `SELECT id
+	FROM orders
+	ORDER BY id DESC
+	LIMIT 1`
+
+	var currentID int
+	queryErr := db.QueryRow(idQuery).Scan(&currentID)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return OrderRepository{db, 0}, nil
+		} else {
+			return OrderRepository{},
+				fmt.Errorf("Error getting last ID from table \"tasks\":\n %w", queryErr)
+		}
+	}
+	return OrderRepository{db, currentID}, nil
 }
 
 // GetAllOrders служит для получения всех заказов, хранящихся в базе данных.

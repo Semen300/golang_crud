@@ -20,6 +20,7 @@ func (mh ManagerHandler) GetAllWorkers(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем работников менеджера через сервис по логину и роли
@@ -35,6 +36,7 @@ func (mh ManagerHandler) GetOrdersByManager(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем заказы менеджера через сервис по логину и роли
@@ -52,6 +54,7 @@ func (mh ManagerHandler) GetOrderByID(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	// Получаем ID заказа из параметров URL и преобразуем его в целое число
@@ -75,6 +78,7 @@ func (mh ManagerHandler) AssignWorkerToOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль менеджера из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	// Получаем ID заказа из параметров URL и преобразуем его в целое число

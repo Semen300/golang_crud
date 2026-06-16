@@ -4,13 +4,12 @@ import (
 	"crud-go/internal/model"
 	"crud-go/internal/repository"
 	"fmt"
-	"time"
 )
 
 type ICustomerService interface {
 	GetOrdersByCustomer(login string, role int) ([]model.Order, error)
 	GetOrderById(login string, role int, id int) (model.Order, error)
-	CreateOrder(login string, role int, deadline time.Time) (int, error)
+	CreateOrder(login string, role int, orderDTO model.OrderCreationDTO) (int, error)
 	DeleteOrder(login string, role int, id int) (int, error)
 	GetItems(login string, role int) ([]model.Item, error)
 	GetBasket(login string, role int) ([]model.TaskCreationDTO, error)
@@ -102,23 +101,15 @@ func (cs CustomerService) GetOrderById(login string, role int, id int) (model.Or
 	return order, nil
 }
 
-func (cs CustomerService) CreateOrder(login string, role int, deadline time.Time) (int, error) {
+func (cs CustomerService) CreateOrder(login string, role int, orderDTO model.OrderCreationDTO) (int, error) {
 	if role != 1 {
 		return 0, fmt.Errorf("You are not authorized for this operation")
 	}
 	or := *(cs.OrderRepository)
 	tr := *(cs.TaskRepository)
-	br := *(cs.BasketRepository)
 
 	price := 0
-	basket, basketErr := br.GetBasket(login)
-	if basketErr != nil {
-		return 0, basketErr
-	}
-	orderDTO := model.OrderCreationDTO{
-		Deadline: deadline,
-		Tasks:    basket,
-	}
+
 	for _, item := range orderDTO.Tasks {
 		price += item.ItemPrice * item.Amount
 	}

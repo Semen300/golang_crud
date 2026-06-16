@@ -160,8 +160,7 @@ func TestGetOrderById(t *testing.T) {
 func TestCreateOrder(t *testing.T) {
 	orderRepoMock := new(orderRepoMock)
 	taskRepoMock := new(taskRepoMock)
-	basketRepoMock := new(basketRepoMock)
-	testService := service.NewCustomerService(orderRepoMock, taskRepoMock, basketRepoMock, nil)
+	testService := service.NewCustomerService(orderRepoMock, taskRepoMock, nil, nil)
 
 	mockTasks := []model.TaskCreationDTO{
 		{
@@ -176,6 +175,11 @@ func TestCreateOrder(t *testing.T) {
 			ItemPrice: 30,
 			Amount:    10,
 		},
+	}
+
+	mockOrder := model.OrderCreationDTO{
+		Deadline: time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC),
+		Tasks:    mockTasks,
 	}
 
 	tasksToSave := []model.Task{
@@ -209,9 +213,7 @@ func TestCreateOrder(t *testing.T) {
 	taskRepoMock.On("SaveTask", tasksToSave[0]).Return(1, nil)
 	taskRepoMock.On("SaveTask", tasksToSave[1]).Return(2, nil)
 
-	basketRepoMock.On("GetBasket", "customer1").Return(mockTasks, nil)
-
-	id, saveErr := testService.CreateOrder("customer1", 1, time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC))
+	id, saveErr := testService.CreateOrder("customer1", 1, mockOrder)
 	assert.NoError(t, saveErr)
 	assert.Equal(t, 1, id)
 	assert.True(t, taskRepoMock.tx.CommitCalled)

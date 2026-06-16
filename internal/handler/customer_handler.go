@@ -52,6 +52,7 @@ func (ch CustomerHandler) GetAllOrders(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем заказы клиента через сервис по логину и роли
@@ -73,6 +74,7 @@ func (ch CustomerHandler) GetCustomerOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 
@@ -100,6 +102,7 @@ func (ch CustomerHandler) CreateOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Создаем новый заказ через сервис, используя данные из тела запроса
@@ -108,7 +111,7 @@ func (ch CustomerHandler) CreateOrder(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
-	createdOrderId, serviceErr := ch.CustomerService.CreateOrder(login, role, orderDTO.Deadline)
+	createdOrderId, serviceErr := ch.CustomerService.CreateOrder(login, role, orderDTO)
 	if serviceErr != nil {
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error creating order: " + serviceErr.Error()})
 		return
@@ -128,6 +131,7 @@ func (ch CustomerHandler) DeleteOrder(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 
@@ -156,6 +160,7 @@ func (ch CustomerHandler) GetItems(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем список всех товаров через сервис
@@ -177,6 +182,7 @@ func (ch CustomerHandler) GetBasket(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Получаем корзину клиента через сервис по логину и роли
@@ -196,6 +202,7 @@ func (ch CustomerHandler) SaveToBasket(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Извлекаем DTO товара из тела запроса
@@ -223,6 +230,7 @@ func (ch CustomerHandler) DeleteFromBasket(ctx *gin.Context) {
 	//Извлекаем логин и роль клиента из контекста
 	login, role := getUserInfo(ctx)
 	if login == "" || role == 0 {
+		ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Incorrect user claims"})
 		return
 	}
 	//Извлекаем ID товара из параметров URL
